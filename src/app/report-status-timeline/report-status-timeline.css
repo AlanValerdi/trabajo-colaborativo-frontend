@@ -1,0 +1,75 @@
+:host {
+  display: block;
+}
+
+.timeline {
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  font-size: 0.72rem;
+  color: #a3a3a3;
+  position: relative;
+}
+
+.timeline li {
+  flex: 1;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  padding-top: 0.85rem;
+}
+
+.timeline li::before {
+  content: '';
+  position: absolute;
+  top: 0.12rem;
+  left: 50%;
+  z-index: 1;
+  width: 0.58rem;
+  height: 0.58rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 2px solid #e5e5e5;
+  transform: translateX(-50%);
+}
+
+.timeline li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 0.4rem;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: #e5e5e5;
+}
+
+.timeline li.done {
+  color: #111;
+  font-weight: 600;
+}
+
+.timeline[data-status='creado'] li:first-child::before {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.timeline[data-status='en_revision'] li:nth-child(-n + 2)::before {
+  background: #eab308;
+  border-color: #eab308;
+}
+
+.timeline[data-status='en_revision'] li:first-child::after {
+  background: #eab308;
+}
+
+.timeline[data-status='resuelto'] li::before {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+
+.timeline[data-status='resuelto'] li:not(:last-child)::after {
+  background: #16a34a;
+}

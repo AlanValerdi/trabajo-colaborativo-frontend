@@ -1,0 +1,251 @@
+<section class="home">
+  @switch (roleSlug()) {
+    @case ('reportante') {
+      <div class="section-head">
+        <h1>Tus reportes</h1>
+        <button class="primary" type="button" (click)="openDialog()">Crear reporte</button>
+      </div>
+      <div class="grid">
+        @for (report of ownReports(); track report.id) {
+          <app-report-card [report]="report" />
+        }
+      </div>
+      <h2>Reportes de la comunidad</h2>
+      <div class="grid">
+        @for (report of communityReports(); track report.id) {
+          <app-report-card [report]="report" />
+        }
+      </div>
+    }
+    @case ('tecnico') {
+      <h1>Asignados a mí</h1>
+      <div class="grid">
+        @for (report of assignedToMe(); track report.id) {
+          <app-report-card [report]="report" />
+        }
+      </div>
+      <h2>En atención</h2>
+      <div class="grid">
+        @for (report of inProgress(); track report.id) {
+          <app-report-card [report]="report" />
+        }
+      </div>
+    }
+    @case ('responsable') {
+      <h1>Por clasificar</h1>
+      <div class="grid">
+        @for (report of unclassified(); track report.id) {
+          <app-report-card [report]="report" />
+        }
+      </div>
+      <h2>Por asignar</h2>
+      <div class="grid">
+        @for (report of unassigned(); track report.id) {
+          <app-report-card [report]="report" />
+        }
+      </div>
+    }
+    @case ('coordinador') {
+      <h1>Carga por técnico</h1>
+      <div class="load-grid">
+        @for (item of technicianLoad; track item.technician.id) {
+          <article class="load-card">
+            <strong>{{ item.technician.name }}</strong>
+            <p>{{ item.count }} asignaciones</p>
+          </article>
+        }
+      </div>
+      <h2>Todos los reportes</h2>
+      <div class="grid">
+        @for (report of allReports(); track report.id) {
+          <app-report-card [report]="report" />
+        }
+      </div>
+    }
+    @case ('validador') {
+      <h1>Pendientes de validar</h1>
+      <div class="grid">
+        @for (report of awaitingValidation(); track report.id) {
+          <app-report-card [report]="report" />
+        }
+      </div>
+    }
+    @case ('administrador') {
+      <h1>{{ session.currentRole().name }}</h1>
+      <div class="context-switch" role="tablist" aria-label="Contexto de administración">
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="adminContext() === 'usuarios'"
+          (click)="adminContext.set('usuarios')"
+        >
+          Usuarios
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="adminContext() === 'roles'"
+          (click)="adminContext.set('roles')"
+        >
+          Roles
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="adminContext() === 'espacios'"
+          (click)="adminContext.set('espacios')"
+        >
+          Espacios
+        </button>
+      </div>
+
+      @switch (adminContext()) {
+        @case ('usuarios') {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Rol</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (user of reports.users; track user.id) {
+                <tr>
+                  <td>
+                    <span class="user-cell">
+                      @if (user.avatarUrl) {
+                        <img class="user-avatar" [src]="user.avatarUrl" [alt]="user.name" />
+                      } @else {
+                        <span class="user-avatar" aria-hidden="true">{{ initials(user.name) }}</span>
+                      }
+                      {{ user.name }}
+                    </span>
+                  </td>
+                  <td>{{ user.email }}</td>
+                  <td>{{ roleName(user.roleId) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+        @case ('roles') {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Descripción</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (role of reports.roles; track role.id) {
+                <tr>
+                  <td>{{ role.name }}</td>
+                  <td>{{ role.description }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+        @case ('espacios') {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Espacio</th>
+                <th>Campus</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (space of reports.spaces; track space.id) {
+                <tr>
+                  <td>{{ space.label }}</td>
+                  <td>{{ reports.campusById(space.campusId)?.name }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      }
+
+      <p class="settings">
+        SLA {{ reports.settings.slaHours }} h · Comunidad
+        {{ reports.settings.allowCommunityReports ? 'activa' : 'inactiva' }}
+      </p>
+    }
+  }
+</section>
+
+@if (dialogOpen()) {
+  <div
+    class="overlay"
+    animate.enter="overlay-enter"
+    animate.leave="overlay-leave"
+    (click)="closeDialog()"
+  >
+    <section class="dialog" (click)="$event.stopPropagation()" role="dialog" aria-labelledby="create-title">
+      <header>
+        <h2 id="create-title">Nuevo reporte</h2>
+        <button type="button" class="icon-close" (click)="closeDialog()" aria-label="Cerrar">×</button>
+      </header>
+      <form [formGroup]="form" (ngSubmit)="submitReport()">
+        <label>
+          Título
+          <input type="text" formControlName="title" />
+        </label>
+        <label>
+          Campus
+          <select formControlName="campusId" (change)="onCampusChange()">
+            @for (campus of reports.campuses; track campus.id) {
+              <option [value]="campus.id">{{ campus.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Ubicación
+          <select formControlName="spaceId">
+            @for (space of spacesForCampus(); track space.id) {
+              <option [value]="space.id">{{ space.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Descripción
+          <textarea formControlName="description" rows="4"></textarea>
+        </label>
+        <label>
+          Imagen (opcional)
+          <input type="file" accept="image/*" (change)="onFile($event)" />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" class="ghost" (click)="closeDialog()">Cancelar</button>
+          <button type="submit" class="primary">Publicar</button>
+        </div>
+      </form>
+    </section>
+  </div>
+}
+
+@if (createdTitle(); as title) {
+  <div
+    class="overlay"
+    animate.enter="overlay-enter"
+    animate.leave="overlay-leave"
+    (click)="closeCreated()"
+  >
+    <section
+      class="dialog confirm-dialog"
+      (click)="$event.stopPropagation()"
+      role="dialog"
+      aria-labelledby="created-title"
+      aria-modal="true"
+    >
+      <h2 id="created-title">Reporte publicado</h2>
+      <p class="confirm-copy">
+        <strong>{{ title }}</strong> ya está en tus reportes y quedó en estado Creado.
+      </p>
+      <div class="dialog-actions">
+        <button type="button" class="primary" (click)="closeCreated()">Entendido</button>
+      </div>
+    </section>
+  </div>
+}

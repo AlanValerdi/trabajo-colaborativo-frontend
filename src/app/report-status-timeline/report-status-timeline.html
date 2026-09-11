@@ -1,0 +1,5 @@
+<ol class="timeline" aria-label="Estado del reporte" [attr.data-status]="status()">
+  @for (step of steps; track step.id) {
+    <li [class.done]="reached(step.id)">{{ step.label }}</li>
+  }
+</ol>

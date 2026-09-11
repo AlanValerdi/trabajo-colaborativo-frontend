@@ -1,0 +1,381 @@
+h1,
+h2 {
+  margin: 0 0 1rem;
+  letter-spacing: -0.03em;
+}
+
+h2 {
+  margin-top: 2rem;
+  font-size: 1.2rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.section-head h1 {
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18.5rem, 1fr));
+  gap: 1rem;
+}
+
+.primary,
+.ghost {
+  height: 2.3rem;
+  padding: 0 1rem;
+  border-radius: 0.6rem;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  border: 0;
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.ghost {
+  border: 1px solid #e5e5e5;
+  background: #fff;
+}
+
+.load-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.75rem;
+}
+
+.load-card,
+.table {
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 0.9rem;
+}
+
+.load-card {
+  padding: 1rem;
+  animation: card-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.load-card p {
+  margin: 0.3rem 0 0;
+  color: #737373;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.4fr 1fr;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.88rem;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row span {
+  color: #525252;
+}
+
+.context-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin: 0 0 1.25rem;
+  padding: 0.22rem;
+  border-radius: 999px;
+  background: #f4f4f5;
+}
+
+.context-switch button {
+  border: 0;
+  background: transparent;
+  color: #737373;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.context-switch button[aria-selected='true'] {
+  background: #fff;
+  color: #171717;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.data-table th {
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #737373;
+  border-bottom: 1px solid #ececec;
+}
+
+.data-table td {
+  padding: 0.95rem 1rem;
+  font-size: 0.9rem;
+  color: #262626;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.user-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-weight: 500;
+}
+
+.user-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: #111;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.grid > app-report-card:nth-child(1),
+.load-grid > .load-card:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.grid > app-report-card:nth-child(2),
+.load-grid > .load-card:nth-child(2) {
+  animation-delay: 0.07s;
+}
+
+.grid > app-report-card:nth-child(3),
+.load-grid > .load-card:nth-child(3) {
+  animation-delay: 0.14s;
+}
+
+.grid > app-report-card:nth-child(4),
+.load-grid > .load-card:nth-child(4) {
+  animation-delay: 0.21s;
+}
+
+.grid > app-report-card:nth-child(5),
+.load-grid > .load-card:nth-child(5) {
+  animation-delay: 0.28s;
+}
+
+.grid > app-report-card:nth-child(6),
+.load-grid > .load-card:nth-child(6) {
+  animation-delay: 0.35s;
+}
+
+.grid > app-report-card:nth-child(7),
+.load-grid > .load-card:nth-child(7) {
+  animation-delay: 0.42s;
+}
+
+.grid > app-report-card:nth-child(n + 8),
+.load-grid > .load-card:nth-child(n + 8) {
+  animation-delay: 0.49s;
+}
+
+.settings {
+  margin-top: 1.5rem;
+  color: #737373;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(10 10 10 / 40%);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 20;
+}
+
+.overlay-enter {
+  animation: overlay-in 0.22s ease both;
+}
+
+.overlay-leave {
+  animation: overlay-out 0.26s ease both;
+}
+
+.overlay-enter .dialog {
+  animation: dialog-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.overlay-leave .dialog {
+  animation: dialog-out 0.26s ease both;
+}
+
+.dialog {
+  width: min(32rem, 100%);
+  background: #fff;
+  border-radius: 1.1rem;
+  padding: 1.2rem;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 18%);
+}
+
+.dialog header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.dialog h2 {
+  margin: 0;
+}
+
+.icon-close {
+  border: 0;
+  background: transparent;
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.dialog input,
+.dialog select,
+.dialog textarea {
+  font: inherit;
+  font-weight: 400;
+  border: 1px solid #e5e5e5;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.7rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.confirm-dialog h2 {
+  margin: 0 0 0.65rem;
+}
+
+.confirm-copy {
+  margin: 0;
+  color: #404040;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  font-weight: 400;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .load-card,
+  .overlay-enter,
+  .overlay-leave,
+  .overlay-enter .dialog,
+  .overlay-leave .dialog {
+    animation: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+
+  .data-table {
+    display: block;
+    overflow-x: auto;
+  }
+}

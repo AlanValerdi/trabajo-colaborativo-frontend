@@ -1,0 +1,42 @@
+@if (item(); as item) {
+  <article class="card">
+    <header class="card-head">
+      <div class="who">
+        <span class="avatar">{{ initials(item.author?.name) }}</span>
+        <div>
+          <strong>{{ item.author?.name }}</strong>
+          <p>{{ item.author?.email }}</p>
+        </div>
+      </div>
+      <button class="more" type="button" aria-label="Más opciones">⋯</button>
+    </header>
+
+    <div class="stats">
+      <div>
+        <strong>{{ item.campus?.name }}</strong>
+        <span>Campus</span>
+      </div>
+      <div>
+        <strong>
+          @for (line of locationLines(item.space?.label); track line) {
+            <span class="loc-line">{{ line }}</span>
+          }
+        </strong>
+        <span>Ubicación</span>
+      </div>
+    </div>
+
+    <app-report-status-timeline [status]="item.report.status" />
+
+    @if (item.report.imageUrl) {
+      <img class="media" [src]="item.report.imageUrl" [alt]="item.report.title" />
+    }
+
+    <div class="body">
+      <h3>{{ item.report.title }}</h3>
+      <p>{{ item.report.description }}</p>
+    </div>
+
+    <a class="view-btn" [routerLink]="['/inicio/reportes', item.report.id]">Ver reporte</a>
+  </article>
+}
