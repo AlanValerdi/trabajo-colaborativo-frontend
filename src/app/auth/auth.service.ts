@@ -1,6 +1,7 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
+import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
 
 export interface TokenResponse {
@@ -14,7 +15,16 @@ export interface TokenResponse {
 })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
   private readonly apiUrl = environment.apiUrl;
+
+  readonly currentUser = signal<any>(null);
+
+  constructor() {
+    if (this.isAuthenticated()) {
+      this.getProfile().subscribe();
+    }
+  }
 
   register(data: any): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/register`, data);
@@ -24,7 +34,14 @@ export class AuthService {
     return this.http.post<TokenResponse>(`${this.apiUrl}/auth/login`, data).pipe(
       tap((response: TokenResponse) => {
         this.setTokens(response);
+        this.getProfile().subscribe();
       })
+    );
+  }
+
+  getProfile(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/auth/me`).pipe(
+      tap((profile) => this.currentUser.set(profile))
     );
   }
 
@@ -33,12 +50,18 @@ export class AuthService {
     if (refreshToken) {
       // Opcional: Llamar al endpoint de logout en el backend
       this.http.post(`${this.apiUrl}/auth/logout`, { refresh_token: refreshToken }).subscribe({
-        next: () => this.clearTokens(),
-        error: () => this.clearTokens()
+        next: () => this.finishLogout(),
+        error: () => this.finishLogout()
       });
     } else {
-      this.clearTokens();
+      this.finishLogout();
     }
+  }
+
+  private finishLogout(): void {
+    this.clearTokens();
+    this.currentUser.set(null);
+    this.router.navigate(['/login']);
   }
 
   setTokens(tokens: TokenResponse): void {

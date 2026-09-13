@@ -89,14 +89,22 @@
 
     <div class="sidebar-footer">
       <div class="user-chip">
-        <span class="avatar">{{ initials(currentUser().name) }}</span>
+        <span class="avatar">{{ initials(currentUser()?.name) }}</span>
         @if (showSidebarLabels()) {
           <span class="user-copy">
-            <span class="user-name">{{ currentUser().name }}</span>
+            <span class="user-name">{{ currentUser()?.name || 'Cargando...' }}</span>
             <span class="user-role">rol: {{ currentRole().name }}</span>
           </span>
         }
       </div>
+      <button class="logout-btn" [class.icon-only]="!showSidebarLabels()" (click)="logout()" aria-label="Cerrar sesión" title="Cerrar sesión">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        @if (showSidebarLabels()) {
+          <span>Salir</span>
+        }
+      </button>
     </div>
   </aside>
 
