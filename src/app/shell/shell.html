@@ -120,6 +120,30 @@
           <span>Reporte {{ title }}</span>
         }
       </nav>
+
+      <!-- Toggle modo oscuro / claro -->
+      <button
+        class="theme-toggle"
+        type="button"
+        (click)="toggleDarkMode()"
+        [attr.aria-label]="darkMode() ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+        [attr.title]="darkMode() ? 'Modo claro' : 'Modo oscuro'"
+      >
+        @if (darkMode()) {
+          <!-- Ícono Sol (cambiar a claro) -->
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.75"/>
+            <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+          </svg>
+          <span>Claro</span>
+        } @else {
+          <!-- Ícono Luna (cambiar a oscuro) -->
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Oscuro</span>
+        }
+      </button>
     </header>
     <div class="content">
       <router-outlet />

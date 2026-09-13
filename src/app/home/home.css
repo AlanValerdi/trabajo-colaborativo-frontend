@@ -49,8 +49,9 @@ h2 {
 }
 
 .ghost {
-  border: 1px solid #e5e5e5;
-  background: #fff;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 
 .load-grid {
@@ -61,9 +62,10 @@ h2 {
 
 .load-card,
 .table {
-  background: #fff;
-  border: 1px solid #ececec;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: 0.9rem;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .load-card {
@@ -73,7 +75,7 @@ h2 {
 
 .load-card p {
   margin: 0.3rem 0 0;
-  color: #737373;
+  color: var(--text-muted);
 }
 
 .row {
@@ -81,8 +83,9 @@ h2 {
   grid-template-columns: 1.2fr 1.4fr 1fr;
   gap: 0.75rem;
   padding: 0.8rem 1rem;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-subtle);
   font-size: 0.88rem;
+  color: var(--text-primary);
 }
 
 .row:last-child {
@@ -90,7 +93,7 @@ h2 {
 }
 
 .row span {
-  color: #525252;
+  color: var(--text-muted);
 }
 
 .context-switch {
@@ -100,25 +103,28 @@ h2 {
   margin: 0 0 1.25rem;
   padding: 0.22rem;
   border-radius: 999px;
-  background: #f4f4f5;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  transition: background 0.3s ease;
 }
 
 .context-switch button {
   border: 0;
   background: transparent;
-  color: #737373;
+  color: var(--text-muted);
   font: inherit;
   font-size: 0.88rem;
   font-weight: 500;
   padding: 0.45rem 1rem;
   border-radius: 999px;
   cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .context-switch button[aria-selected='true'] {
-  background: #fff;
-  color: #171717;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
 .data-table {
@@ -131,15 +137,15 @@ h2 {
   padding: 0.75rem 1rem;
   font-size: 0.82rem;
   font-weight: 500;
-  color: #737373;
-  border-bottom: 1px solid #ececec;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .data-table td {
   padding: 0.95rem 1rem;
   font-size: 0.9rem;
-  color: #262626;
-  border-bottom: 1px solid #f0f0f0;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .data-table tbody tr:last-child td {
@@ -209,7 +215,7 @@ h2 {
 
 .settings {
   margin-top: 1.5rem;
-  color: #737373;
+  color: var(--text-muted);
 }
 
 .overlay {
@@ -240,10 +246,13 @@ h2 {
 
 .dialog {
   width: min(32rem, 100%);
-  background: #fff;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: 1.1rem;
   padding: 1.2rem;
-  box-shadow: 0 24px 80px rgb(0 0 0 / 18%);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  color: var(--text-primary);
+  transition: background 0.3s ease;
 }
 
 .dialog header {
@@ -284,9 +293,20 @@ h2 {
 .dialog textarea {
   font: inherit;
   font-weight: 400;
-  border: 1px solid #e5e5e5;
+  border: 1px solid var(--border-color);
   border-radius: 0.5rem;
   padding: 0.5rem 0.7rem;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dialog input:focus,
+.dialog select:focus,
+.dialog textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 .dialog-actions {
@@ -302,7 +322,7 @@ h2 {
 
 .confirm-copy {
   margin: 0;
-  color: #404040;
+  color: var(--text-secondary);
   font-size: 0.92rem;
   line-height: 1.45;
   font-weight: 400;

@@ -3,15 +3,35 @@
 <head>
   <meta charset="utf-8">
   <title>Reportes</title>
+  <meta name="description" content="Plataforma de gestión y seguimiento de reportes institucionales.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Favicon / Logo -->
+  <link rel="icon" type="image/png" href="logo.png">
+
+  <!-- Google Fonts — Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
     rel="stylesheet"
   />
+
   <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+  <!-- Anti-FOWT: aplicar tema antes de que Angular hidrate para evitar flash -->
+  <script>
+    (function () {
+      var stored = localStorage.getItem('app-theme');
+      var theme;
+      if (stored === 'light' || stored === 'dark') {
+        theme = stored;
+      } else {
+        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
 </head>
 <body>
   <app-root></app-root>
