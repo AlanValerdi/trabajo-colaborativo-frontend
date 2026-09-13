@@ -1,8 +1,104 @@
+/* ═══════════════════════════════════════════════
+   DESIGN TOKENS — Modo Oscuro (por defecto)
+═══════════════════════════════════════════════ */
 :root {
-  --color-primary: #003b5c;
-  --color-primary-hover: color-mix(in srgb, #003b5c 78%, #000);
+  /* Primarios */
+  --color-primary:        #2563EB;
+  --color-primary-hover:  #3B82F6;
+  --color-primary-dark:   #1D4ED8;
+  --color-primary-glow:   rgba(37, 99, 235, 0.28);
+
+  /* Fondos */
+  --bg-page:     #0A0A0F;
+  --bg-surface:  #0F172A;
+  --bg-input:    #111827;
+  --bg-elevated: #1E293B;
+
+  /* Bordes */
+  --border-color:  #1E3A5F;
+  --border-subtle: #263352;
+
+  /* Texto */
+  --text-primary:   #F1F5F9;
+  --text-secondary: #CBD5E1;
+  --text-muted:     #94A3B8;
+  --text-link:      #60A5FA;
+
+  /* Sidebar */
+  --sidebar-bg:      #0F172A;
+  --sidebar-border:  #1E3A5F;
+  --sidebar-text:    #F1F5F9;
+  --sidebar-muted:   rgba(241, 245, 249, 0.55);
+  --sidebar-hover:   rgba(255, 255, 255, 0.07);
+  --sidebar-active:  rgba(37, 99, 235, 0.30);
+
+  /* Componentes */
+  --role-menu-bg:      #1E293B;
+  --role-menu-border:  #334155;
+  --role-option-hover: #263348;
+  --topbar-bg:         #0A0A0F;
+  --topbar-border:     #1E3A5F;
+  --menu-btn-hover:    #1E293B;
+  --breadcrumb-color:  #94A3B8;
+  --sep-color:         #475569;
+
+  /* Auth */
+  --auth-panel-bg:     #0F172A;
+  --auth-image-overlay: rgba(10, 10, 20, 0.48);
+
+  /* Scrollbar */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #334155;
 }
 
+/* ═══════════════════════════════════════════════
+   DESIGN TOKENS — Modo Claro
+═══════════════════════════════════════════════ */
+:root[data-theme="light"] {
+  --color-primary:        #1D4ED8;
+  --color-primary-hover:  #2563EB;
+  --color-primary-dark:   #1E40AF;
+  --color-primary-glow:   rgba(29, 78, 216, 0.18);
+
+  --bg-page:     #F1F5F9;
+  --bg-surface:  #FFFFFF;
+  --bg-input:    #FFFFFF;
+  --bg-elevated: #F8FAFC;
+
+  --border-color:  #CBD5E1;
+  --border-subtle: #E2E8F0;
+
+  --text-primary:   #0F172A;
+  --text-secondary: #334155;
+  --text-muted:     #64748B;
+  --text-link:      #1D4ED8;
+
+  --sidebar-bg:      #1D4ED8;
+  --sidebar-border:  #1E40AF;
+  --sidebar-text:    #F1F5F9;
+  --sidebar-muted:   rgba(241, 245, 249, 0.65);
+  --sidebar-hover:   rgba(255, 255, 255, 0.12);
+  --sidebar-active:  rgba(255, 255, 255, 0.22);
+
+  --role-menu-bg:      #FFFFFF;
+  --role-menu-border:  #E2E8F0;
+  --role-option-hover: #F1F5F9;
+  --topbar-bg:         #FFFFFF;
+  --topbar-border:     #E2E8F0;
+  --menu-btn-hover:    #F1F5F9;
+  --breadcrumb-color:  #64748B;
+  --sep-color:         #CBD5E1;
+
+  --auth-panel-bg:      #FFFFFF;
+  --auth-image-overlay: rgba(10, 10, 30, 0.38);
+
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #CBD5E1;
+}
+
+/* ═══════════════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════════════ */
 *,
 *::before,
 *::after {
@@ -27,8 +123,24 @@ body {
     Helvetica,
     Arial,
     sans-serif;
-  color: #0a0a0a;
-  background: #fff;
+  color: var(--text-primary);
+  background: var(--bg-page);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Scrollbars personalizadas */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
 }

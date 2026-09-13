@@ -158,10 +158,10 @@ export const CURRENT_TECHNICIAN_ID = 'usr-carlos';
 
 export const REPORTS: Report[] = [
   {
-    id: 'rep-banos-sucios',
-    title: 'Baños sucios',
+    id: 'rep-banos-tapados',
+    title: 'Baños tapados',
     description:
-      'Los sanitarios del segundo piso no tienen insumos y el piso está mojado.',
+      'Los sanitarios del segundo piso estan tapados, alguien dejo un mierdon.',
     campusId: 'cam-central',
     spaceId: 'spc-banos-b1',
     status: 'creado',

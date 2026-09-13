@@ -8,6 +8,7 @@ import { RoleSessionService } from '../session/role-session.service';
 import { ReportsService } from '../data/reports.service';
 
 const MOBILE_QUERY = '(max-width: 860px)';
+const THEME_KEY = 'app-theme';
 
 @Component({
   selector: 'app-shell',
@@ -26,6 +27,7 @@ export class Shell {
   protected readonly mobileOpen = signal(false);
   protected readonly isMobile = signal(false);
   protected readonly roleMenuOpen = signal(false);
+  protected readonly darkMode = signal(true);
   protected readonly currentRole = this.roles.currentRole;
   protected readonly currentUser = this.roles.currentUser;
   protected readonly allRoles = this.reports.roles;
@@ -59,6 +61,13 @@ export class Shell {
     }
 
     afterNextRender(() => {
+      // ── Inicializar tema ──────────────────────────
+      const saved = localStorage.getItem(THEME_KEY);
+      const prefersDark =
+        saved !== null ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      this.applyTheme(prefersDark);
+
+      // ── Media query para mobile ───────────────────
       const query = window.matchMedia(MOBILE_QUERY);
       const sync = (event?: MediaQueryListEvent) => {
         const mobile = event?.matches ?? query.matches;
@@ -94,6 +103,17 @@ export class Shell {
   protected selectRole(slug: RoleSlug): void {
     this.roles.setRole(slug);
     this.roleMenuOpen.set(false);
+  }
+
+  protected toggleDarkMode(): void {
+    const next = !this.darkMode();
+    this.applyTheme(next);
+  }
+
+  private applyTheme(dark: boolean): void {
+    this.darkMode.set(dark);
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
   }
 
   protected initials(name: string): string {
