@@ -6,6 +6,7 @@ import { RoleSlug } from '../data/models';
 import { BreadcrumbService } from '../session/breadcrumb.service';
 import { RoleSessionService } from '../session/role-session.service';
 import { ReportsService } from '../data/reports.service';
+import { AuthService } from '../auth/auth.service';
 
 const MOBILE_QUERY = '(max-width: 860px)';
 const THEME_KEY = 'app-theme';
@@ -22,6 +23,7 @@ export class Shell {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly reports = inject(ReportsService);
   protected readonly crumbs = inject(BreadcrumbService);
+  protected readonly authService = inject(AuthService);
 
   protected readonly collapsed = signal(false);
   protected readonly mobileOpen = signal(false);
@@ -29,7 +31,7 @@ export class Shell {
   protected readonly roleMenuOpen = signal(false);
   protected readonly darkMode = signal(true);
   protected readonly currentRole = this.roles.currentRole;
-  protected readonly currentUser = this.roles.currentUser;
+  protected readonly currentUser = this.authService.currentUser;
   protected readonly allRoles = this.reports.roles;
   protected readonly showSidebarLabels = computed(() => this.isMobile() || !this.collapsed());
 
@@ -100,6 +102,10 @@ export class Shell {
     this.roleMenuOpen.update((value) => !value);
   }
 
+  protected logout(): void {
+    this.authService.logout();
+  }
+
   protected selectRole(slug: RoleSlug): void {
     this.roles.setRole(slug);
     this.roleMenuOpen.set(false);
@@ -116,7 +122,8 @@ export class Shell {
     localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
   }
 
-  protected initials(name: string): string {
+  protected initials(name: string | undefined | null): string {
+    if (!name) return '';
     return name
       .split(' ')
       .slice(0, 2)
