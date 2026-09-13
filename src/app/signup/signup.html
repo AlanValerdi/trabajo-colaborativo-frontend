@@ -14,6 +14,12 @@
       <h1 id="signup-heading">Crea tu cuenta</h1>
       <p class="subtitle">Ingresa tus datos para registrarte</p>
 
+      @if (errorMessage) {
+        <div class="field-error" style="margin-bottom: 1rem; color: #dc2626; font-weight: 500;">
+          {{ errorMessage }}
+        </div>
+      }
+
       <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
         <label class="field">
           <span class="field-label">Nombre</span>

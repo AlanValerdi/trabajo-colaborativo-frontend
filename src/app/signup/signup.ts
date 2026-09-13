@@ -2,16 +2,21 @@ import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { passwordsMatchValidator } from './passwords-match.validator';
+import { AuthService } from '../auth/auth.service';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-signup',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, CommonModule],
   templateUrl: './signup.html',
   styleUrl: '../auth/auth-page.css',
 })
 export class Signup {
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
+
+  public errorMessage = '';
 
   protected readonly form = this.fb.nonNullable.group(
     {
@@ -26,7 +31,17 @@ export class Signup {
   protected onSubmit(): void {
     this.form.markAllAsTouched();
     if (this.form.valid) {
-      void this.router.navigateByUrl('/inicio');
+      const { name, email, password } = this.form.value;
+      this.authService.register({ name, email, password }).subscribe({
+        next: () => {
+          void this.router.navigateByUrl('/login');
+        },
+        error: (err) => {
+          this.errorMessage = err.error?.detail || 'Error al registrar usuario';
+          console.error('Signup error', err);
+        }
+      });
     }
   }
 }
+
