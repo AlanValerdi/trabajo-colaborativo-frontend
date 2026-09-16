@@ -1,15 +1,16 @@
-import { afterNextRender, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
+import { afterNextRender, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { filter } from 'rxjs';
-import { RoleSlug } from '../data/models';
+import { filter, map, startWith } from 'rxjs';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { BreadcrumbService } from '../session/breadcrumb.service';
 import { RoleSessionService } from '../session/role-session.service';
-import { ReportsService } from '../data/reports.service';
 import { AuthService } from '../auth/auth.service';
+import { roleBySlug, roleSlugFromBackend } from '../data/roles';
+import { HomeSearchService } from '../session/home-search.service';
 
 const MOBILE_QUERY = '(max-width: 860px)';
-const THEME_KEY = 'app-theme';
+const SEARCH_MOBILE_QUERY = '(max-width: 700px)';
 
 @Component({
   selector: 'app-shell',
@@ -21,66 +22,87 @@ export class Shell {
   private readonly router = inject(Router);
   private readonly roles = inject(RoleSessionService);
   private readonly destroyRef = inject(DestroyRef);
-  protected readonly reports = inject(ReportsService);
   protected readonly crumbs = inject(BreadcrumbService);
   protected readonly authService = inject(AuthService);
+  protected readonly homeSearch = inject(HomeSearchService);
 
   protected readonly collapsed = signal(false);
   protected readonly mobileOpen = signal(false);
   protected readonly isMobile = signal(false);
+  protected readonly isSearchMobile = signal(false);
   protected readonly roleMenuOpen = signal(false);
-  protected readonly darkMode = signal(true);
   protected readonly currentRole = this.roles.currentRole;
   protected readonly currentUser = this.authService.currentUser;
-  protected readonly allRoles = this.reports.roles;
+  protected readonly searchQuery = this.homeSearch.query;
+
+  private readonly currentUrl = toSignal(
+    this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      map(() => this.router.url),
+      startWith(this.router.url),
+    ),
+    { initialValue: this.router.url },
+  );
+
+  protected readonly showTopbarSearch = computed(() => {
+    const url = this.currentUrl();
+    return this.isSearchMobile() && (url === '/inicio' || url.startsWith('/inicio/comunidad'));
+  });
+
+  protected readonly availableRoles = computed(() => {
+    const profile = this.authService.currentUser();
+    if (!profile?.role) {
+      return [];
+    }
+    return [roleBySlug(roleSlugFromBackend(profile.role))];
+  });
+
   protected readonly showSidebarLabels = computed(() => this.isMobile() || !this.collapsed());
 
   constructor() {
-    let skip = true;
-    effect(() => {
-      this.roles.currentSlug();
-      if (skip) {
-        skip = false;
-        return;
-      }
-      if (this.router.url.includes('/reportes/')) {
-        void this.router.navigateByUrl('/inicio');
-      }
-    });
-
     this.router.events
       .pipe(
         filter((event) => event instanceof NavigationEnd),
         takeUntilDestroyed(),
       )
-      .subscribe(() => {
+      .subscribe((event) => {
         this.roleMenuOpen.set(false);
         this.mobileOpen.set(false);
+        const url = (event as NavigationEnd).urlAfterRedirects;
+        if (!url.startsWith('/inicio')) {
+          this.homeSearch.clear();
+        }
       });
 
     if (typeof window !== 'undefined') {
       this.isMobile.set(window.matchMedia(MOBILE_QUERY).matches);
+      this.isSearchMobile.set(window.matchMedia(SEARCH_MOBILE_QUERY).matches);
     }
 
     afterNextRender(() => {
-      // ── Inicializar tema ──────────────────────────
-      const saved = localStorage.getItem(THEME_KEY);
-      const prefersDark =
-        saved !== null ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-      this.applyTheme(prefersDark);
+      const mobileQuery = window.matchMedia(MOBILE_QUERY);
+      const searchMobileQuery = window.matchMedia(SEARCH_MOBILE_QUERY);
 
-      // ── Media query para mobile ───────────────────
-      const query = window.matchMedia(MOBILE_QUERY);
-      const sync = (event?: MediaQueryListEvent) => {
-        const mobile = event?.matches ?? query.matches;
+      const syncMobile = (event?: MediaQueryListEvent) => {
+        const mobile = event?.matches ?? mobileQuery.matches;
         this.isMobile.set(mobile);
         if (event && mobile) {
           this.mobileOpen.set(false);
         }
       };
-      sync();
-      query.addEventListener('change', sync);
-      this.destroyRef.onDestroy(() => query.removeEventListener('change', sync));
+
+      const syncSearchMobile = (event?: MediaQueryListEvent) => {
+        this.isSearchMobile.set(event?.matches ?? searchMobileQuery.matches);
+      };
+
+      syncMobile();
+      syncSearchMobile();
+      mobileQuery.addEventListener('change', syncMobile);
+      searchMobileQuery.addEventListener('change', syncSearchMobile);
+      this.destroyRef.onDestroy(() => {
+        mobileQuery.removeEventListener('change', syncMobile);
+        searchMobileQuery.removeEventListener('change', syncSearchMobile);
+      });
     });
   }
 
@@ -99,6 +121,9 @@ export class Shell {
   }
 
   protected toggleRoleMenu(): void {
+    if (this.availableRoles().length <= 1) {
+      return;
+    }
     this.roleMenuOpen.update((value) => !value);
   }
 
@@ -106,20 +131,9 @@ export class Shell {
     this.authService.logout();
   }
 
-  protected selectRole(slug: RoleSlug): void {
-    this.roles.setRole(slug);
-    this.roleMenuOpen.set(false);
-  }
-
-  protected toggleDarkMode(): void {
-    const next = !this.darkMode();
-    this.applyTheme(next);
-  }
-
-  private applyTheme(dark: boolean): void {
-    this.darkMode.set(dark);
-    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-    localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
+  protected onTopbarSearchInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.homeSearch.setQuery(value);
   }
 
   protected initials(name: string | undefined | null): string {

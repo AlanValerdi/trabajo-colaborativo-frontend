@@ -1,24 +1,17 @@
-@if (item(); as item) {
+@if (report(); as item) {
   <article class="card">
     <header class="card-head">
-      <div class="who">
-        <span class="avatar">{{ initials(item.author?.name) }}</span>
-        <div>
-          <strong>{{ item.author?.name }}</strong>
-          <p>{{ item.author?.email }}</p>
-        </div>
-      </div>
-      <button class="more" type="button" aria-label="Más opciones">⋯</button>
+      <strong class="author-name">{{ item.author.name }}</strong>
     </header>
 
     <div class="stats">
       <div>
-        <strong>{{ item.campus?.name }}</strong>
+        <strong>{{ item.campusLabel }}</strong>
         <span>Campus</span>
       </div>
       <div>
         <strong>
-          @for (line of locationLines(item.space?.label); track line) {
+          @for (line of locationLines(item.spaceLabel); track line) {
             <span class="loc-line">{{ line }}</span>
           }
         </strong>
@@ -26,17 +19,17 @@
       </div>
     </div>
 
-    <app-report-status-timeline [status]="item.report.status" />
+    <app-report-status-timeline [status]="item.status" />
 
-    @if (item.report.imageUrl) {
-      <img class="media" [src]="item.report.imageUrl" [alt]="item.report.title" />
+    @if (item.imageUrl) {
+      <img class="media" [src]="item.imageUrl" [alt]="item.title" />
     }
 
     <div class="body">
-      <h3>{{ item.report.title }}</h3>
-      <p>{{ item.report.description }}</p>
+      <h3>{{ item.title }}</h3>
+      <p>{{ item.description }}</p>
     </div>
 
-    <a class="view-btn" [routerLink]="['/inicio/reportes', item.report.id]">Ver reporte</a>
+    <a class="view-btn" [routerLink]="['/inicio/reportes', item.folio]">Ver reporte</a>
   </article>
 }

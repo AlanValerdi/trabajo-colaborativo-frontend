@@ -1,0 +1,60 @@
+<section class="community">
+  @if (loading()) {
+    <p class="loading">Cargando reportes de la comunidad…</p>
+  } @else if (loadError(); as error) {
+    <div class="empty-state">
+      <p>{{ error }}</p>
+      <button class="primary" type="button" (click)="loadReports()">Reintentar</button>
+    </div>
+  } @else {
+    <div class="section-head">
+      <h1>Reportes de la comunidad</h1>
+      <div class="search-wrap desktop-search">
+        <input
+          type="search"
+          class="search-input"
+          placeholder="Buscar por título o folio"
+          [value]="searchQuery()"
+          (input)="onSearchInput($event)"
+        />
+      </div>
+    </div>
+
+    @if (communityReports().length === 0) {
+      <div class="empty-state">
+        <p>Aún no hay reportes en la comunidad.</p>
+      </div>
+    } @else if (filteredCommunityReports().length === 0) {
+      <div class="empty-state">
+        <p>No hay reportes que coincidan con tu búsqueda.</p>
+      </div>
+    } @else {
+      <div class="grid">
+        @for (report of pagedCommunityReports(); track report.id) {
+          <app-report-card [report]="report" />
+        }
+      </div>
+      @if (showPaginator()) {
+        <nav class="paginator" aria-label="Paginación de reportes de la comunidad">
+          <button
+            type="button"
+            class="ghost"
+            [disabled]="page() === 1"
+            (click)="goToPage(page() - 1)"
+          >
+            Anterior
+          </button>
+          <span class="paginator-status">Página {{ page() }} de {{ totalPages() }}</span>
+          <button
+            type="button"
+            class="ghost"
+            [disabled]="page() === totalPages()"
+            (click)="goToPage(page() + 1)"
+          >
+            Siguiente
+          </button>
+        </nav>
+      }
+    }
+  }
+</section>

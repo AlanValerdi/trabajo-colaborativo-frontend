@@ -1,0 +1,38 @@
+<section class="folio-search">
+  <h1>Buscar reporte por folio</h1>
+
+  <form [formGroup]="form" (ngSubmit)="search()" class="search-bar">
+    <label>
+      Folio
+      <input type="text" inputmode="numeric" formControlName="folio" placeholder="Ej. 12" />
+    </label>
+    <button type="submit" class="primary">Buscar</button>
+  </form>
+
+  @if (state() === 'loading') {
+    <p class="hint">Buscando…</p>
+  }
+
+  @if (state() === 'not-found') {
+    <p class="hint">No existe ningún reporte con ese folio.</p>
+  }
+
+  @if (state() === 'error') {
+    <p class="hint">Ocurrió un error al consultar el reporte. Intenta de nuevo.</p>
+  }
+
+  @if (result(); as report) {
+    <article class="detail">
+      <h2>{{ report.title }}</h2>
+      <p class="meta">Folio #{{ report.id }} · {{ report.campusLabel }} · {{ report.spaceLabel }}</p>
+
+      <app-report-status-timeline [status]="report.status" />
+
+      @if (report.imageUrl) {
+        <img [src]="report.imageUrl" [alt]="report.title" />
+      }
+
+      <p class="description">{{ report.description }}</p>
+    </article>
+  }
+</section>

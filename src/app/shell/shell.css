@@ -87,9 +87,17 @@
   display: grid;
   place-items: center;
   border-radius: 0.55rem;
-  background: rgba(37, 99, 235, 0.35);
-  color: #60A5FA;
-  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.2);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.brand-btn.single-role {
+  cursor: default;
+}
+
+.brand-btn.single-role .caret {
+  display: none;
 }
 
 .brand-mark svg,
@@ -418,42 +426,28 @@
   color: var(--sep-color);
 }
 
-/* ── Botón toggle tema ───────────────────────── */
-.theme-toggle {
+.topbar-search {
   margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.3rem 0.55rem;
+  flex: 1;
+  max-width: 14rem;
+}
+
+.topbar-search-input {
+  width: 100%;
+  height: 2.1rem;
+  padding: 0 0.75rem;
   border: 1px solid var(--topbar-border);
   border-radius: 999px;
-  background: var(--bg-surface);
-  color: var(--breadcrumb-color);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.theme-toggle:hover {
-  background: var(--bg-elevated);
-  border-color: var(--color-primary);
+  background: var(--bg-input);
   color: var(--text-primary);
+  font: inherit;
+  font-size: 0.82rem;
 }
 
-.theme-toggle svg {
-  width: 1rem;
-  height: 1rem;
-  flex-shrink: 0;
-  transition: transform 0.3s ease;
-}
-
-.theme-toggle:hover svg {
-  transform: rotate(20deg);
+.topbar-search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 /* ── Contenido ───────────────────────────────── */
@@ -612,6 +606,20 @@
   }
 }
 
+@media (max-width: 700px) {
+  .topbar {
+    gap: 0.5rem;
+  }
+
+  .breadcrumb {
+    display: none;
+  }
+
+  .topbar-search {
+    max-width: none;
+  }
+}
+
 /* ── Animaciones ─────────────────────────────── */
 @keyframes overlay-in {
   from {
@@ -643,9 +651,5 @@
   .backdrop-in,
   .backdrop-out {
     animation: none;
-  }
-
-  .theme-toggle svg {
-    transition: none;
   }
 }

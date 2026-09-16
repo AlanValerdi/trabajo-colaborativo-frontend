@@ -38,6 +38,12 @@
   gap: 0.5rem;
 }
 
+.author-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 .who {
   display: flex;
   gap: 0.6rem;

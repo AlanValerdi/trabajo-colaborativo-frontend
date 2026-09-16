@@ -1,7 +1,6 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ReportsService } from '../data/reports.service';
-import { Report } from '../data/models';
+import { ApiReport } from '../data/reports-api.service';
 import { ReportStatusTimeline } from '../report-status-timeline/report-status-timeline';
 
 @Component({
@@ -11,22 +10,7 @@ import { ReportStatusTimeline } from '../report-status-timeline/report-status-ti
   styleUrl: './report-card.css',
 })
 export class ReportCard {
-  private readonly reports = inject(ReportsService);
-
-  readonly report = input.required<Report>();
-  protected readonly item = computed(() => this.reports.viewOf(this.report()));
-
-  protected initials(name?: string): string {
-    if (!name) {
-      return '?';
-    }
-    return name
-      .split(' ')
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase();
-  }
+  readonly report = input.required<ApiReport>();
 
   protected locationLines(label?: string): string[] {
     if (!label) {

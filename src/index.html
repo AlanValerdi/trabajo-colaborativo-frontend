@@ -18,20 +18,6 @@
   />
 
   <base href="/">
-
-  <!-- Anti-FOWT: aplicar tema antes de que Angular hidrate para evitar flash -->
-  <script>
-    (function () {
-      var stored = localStorage.getItem('app-theme');
-      var theme;
-      if (stored === 'light' || stored === 'dark') {
-        theme = stored;
-      } else {
-        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      document.documentElement.setAttribute('data-theme', theme);
-    })();
-  </script>
 </head>
 <body>
   <app-root></app-root>

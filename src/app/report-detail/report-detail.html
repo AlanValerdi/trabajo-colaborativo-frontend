@@ -1,16 +1,19 @@
-@if (view) {
+@if (loading()) {
+  <p class="loading">Cargando reporte…</p>
+} @else if (report(); as view) {
   <article class="detail">
-    <h1>{{ view.report.title }}</h1>
-    <p class="meta">{{ view.author?.name }} · {{ view.campus?.name }}</p>
+    <p class="folio-line"><code>{{ view.folio }}</code></p>
+    <h1>{{ view.title }}</h1>
+    <p class="meta">{{ view.author.name }} · {{ view.campusLabel }}</p>
 
     <div class="stats">
       <div>
-        <strong>{{ view.campus?.name }}</strong>
+        <strong>{{ view.campusLabel }}</strong>
         <span>Campus</span>
       </div>
       <div>
         <strong>
-          @for (line of locationLines(view.space?.label); track line) {
+          @for (line of locationLines(view.spaceLabel); track line) {
             <span class="loc-line">{{ line }}</span>
           }
         </strong>
@@ -20,57 +23,16 @@
 
     <hr class="rule" />
 
-    <app-report-status-timeline [status]="view.report.status" />
+    <app-report-status-timeline [status]="view.status" />
 
     <hr class="rule" />
 
-    @if (view.report.imageUrl) {
-      <img [src]="view.report.imageUrl" [alt]="view.report.title" />
+    @if (view.imageUrl) {
+      <img [src]="view.imageUrl" [alt]="view.title" />
       <hr class="rule" />
     }
 
-    <p class="description">{{ view.report.description }}</p>
-
-    @if (workLogs.length) {
-      <hr class="rule" />
-      <h2>Trabajo documentado</h2>
-      @for (log of workLogs; track log.id) {
-        <p class="log">{{ log.notes }}</p>
-      }
-    }
-
-    <hr class="rule" />
-
-    <section class="activity" aria-labelledby="activity-heading">
-      <h2 id="activity-heading">Registro de actividad</h2>
-
-      @for (group of activityGroups; track group.label) {
-        <p class="day">{{ group.label }}</p>
-        <ul>
-          @for (entry of group.items; track entry.id) {
-            <li>
-              <span class="avatar">{{ initials(entry.actorName) }}</span>
-              <div class="entry-body">
-                <p>
-                  <strong>{{ entry.actorName }}</strong>
-                  {{ entry.action }}
-                  @if (entry.assignedTo) {
-                    <strong>{{ entry.assignedTo }}</strong>
-                  }
-                  @if (entry.badge; as badge) {
-                    <span class="badge" [class]="'badge-' + badge.tone">{{ badge.label }}</span>
-                  }
-                </p>
-                @if (entry.note) {
-                  <p class="note">{{ entry.note }}</p>
-                }
-              </div>
-              <time>{{ formatTime(entry.at) }}</time>
-            </li>
-          }
-        </ul>
-      }
-    </section>
+    <p class="description">{{ view.description }}</p>
   </article>
 } @else {
   <div class="empty">
