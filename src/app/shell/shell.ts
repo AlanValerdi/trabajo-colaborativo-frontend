@@ -6,7 +6,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { BreadcrumbService } from '../session/breadcrumb.service';
 import { RoleSessionService } from '../session/role-session.service';
 import { AuthService } from '../auth/auth.service';
-import { roleBySlug, roleSlugFromBackend } from '../data/roles';
+import { RoleSlug } from '../data/models';
 import { HomeSearchService } from '../session/home-search.service';
 import {
   LucideChevronDown,
@@ -50,6 +50,7 @@ export class Shell {
   protected readonly isSearchMobile = signal(false);
   protected readonly roleMenuOpen = signal(false);
   protected readonly currentRole = this.roles.currentRole;
+  protected readonly availableRoles = this.roles.availableRoles;
   protected readonly currentUser = this.authService.currentUser;
   protected readonly searchQuery = this.homeSearch.query;
 
@@ -65,14 +66,6 @@ export class Shell {
   protected readonly showTopbarSearch = computed(() => {
     const url = this.currentUrl();
     return this.isSearchMobile() && (url === '/inicio' || url.startsWith('/inicio/comunidad'));
-  });
-
-  protected readonly availableRoles = computed(() => {
-    const profile = this.authService.currentUser();
-    if (!profile?.role) {
-      return [];
-    }
-    return [roleBySlug(roleSlugFromBackend(profile.role))];
   });
 
   protected readonly showSidebarLabels = computed(() => this.isMobile() || !this.collapsed());
@@ -143,6 +136,11 @@ export class Shell {
       return;
     }
     this.roleMenuOpen.update((value) => !value);
+  }
+
+  protected selectRole(slug: RoleSlug): void {
+    this.roles.setRole(slug);
+    this.roleMenuOpen.set(false);
   }
 
   protected logout(): void {

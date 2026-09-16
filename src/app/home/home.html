@@ -163,7 +163,7 @@
             type="button"
             role="tab"
             [attr.aria-selected]="adminContext() === 'usuarios'"
-            (click)="adminContext.set('usuarios')"
+            (click)="setAdminContext('usuarios')"
           >
             Usuarios
           </button>
@@ -171,7 +171,7 @@
             type="button"
             role="tab"
             [attr.aria-selected]="adminContext() === 'roles'"
-            (click)="adminContext.set('roles')"
+            (click)="setAdminContext('roles')"
           >
             Roles
           </button>
@@ -179,7 +179,7 @@
             type="button"
             role="tab"
             [attr.aria-selected]="adminContext() === 'espacios'"
-            (click)="adminContext.set('espacios')"
+            (click)="setAdminContext('espacios')"
           >
             Espacios
           </button>
@@ -187,9 +187,64 @@
 
         @switch (adminContext()) {
           @case ('usuarios') {
-            <div class="empty-state compact">
-              <p>La gestión de usuarios estará disponible cuando se conecte el catálogo del backend.</p>
-            </div>
+            @if (usersLoading()) {
+              <p class="loading">Cargando usuarios…</p>
+            } @else if (usersError(); as error) {
+              <div class="empty-state compact">
+                <p>{{ error }}</p>
+                <button class="primary" type="button" (click)="loadUsers()">Reintentar</button>
+              </div>
+            } @else {
+              @if (userSaveError(); as saveError) {
+                <p class="form-error users-error">{{ saveError }}</p>
+              }
+              <div class="table-wrap users-table-wrap">
+                <table class="data-table users-table">
+                  <thead>
+                    <tr>
+                      <th>Usuario</th>
+                      <th>Estado</th>
+                      @for (role of roles; track role.id) {
+                        <th class="role-col">{{ role.name }}</th>
+                      }
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (user of users(); track user.id) {
+                      <tr>
+                        <td>
+                          <strong>{{ user.name }}</strong>
+                          <span class="user-email">{{ user.email }}</span>
+                        </td>
+                        <td>{{ user.is_active ? 'Activo' : 'Inactivo' }}</td>
+                        @for (role of roles; track role.id) {
+                          <td class="role-col">
+                            <label class="role-checkbox">
+                              <input
+                                type="checkbox"
+                                [checked]="userHasDraftRole(user.id, role.slug)"
+                                (change)="toggleUserRole(user.id, role.slug)"
+                              />
+                            </label>
+                          </td>
+                        }
+                        <td>
+                          <button
+                            type="button"
+                            class="primary compact"
+                            [disabled]="!userRolesDirty(user) || savingUserId() === user.id"
+                            (click)="saveUserRoles(user)"
+                          >
+                            {{ savingUserId() === user.id ? 'Guardando…' : 'Guardar' }}
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
           }
           @case ('roles') {
             <table class="data-table">

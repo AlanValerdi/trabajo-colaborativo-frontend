@@ -46,6 +46,18 @@ export function roleSlugFromBackend(role: string): RoleSlug {
   return role as RoleSlug;
 }
 
+export function roleSlugToBackend(slug: RoleSlug): string {
+  if (slug === 'responsable') {
+    return 'responsable_area';
+  }
+  return slug;
+}
+
+export function rolesFromBackend(roles: string[]): Role[] {
+  const slugs = roles.map((role) => roleSlugFromBackend(role));
+  return ROLES.filter((item) => slugs.includes(item.slug));
+}
+
 export function roleBySlug(slug: RoleSlug): Role {
   return ROLES.find((item) => item.slug === slug) ?? ROLES[0];
 }

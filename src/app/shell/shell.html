@@ -55,6 +55,7 @@
                 type="button"
                 class="role-option"
                 [class.active]="role.slug === currentRole().slug"
+                (click)="selectRole(role.slug)"
               >
                 <strong>{{ role.name }}</strong>
                 <span>{{ role.description }}</span>

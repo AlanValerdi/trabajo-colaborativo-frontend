@@ -29,7 +29,7 @@ export interface UserProfile {
   id: number;
   name: string;
   email: string;
-  role: string;
+  roles: string[];
   is_active?: boolean;
   created_at?: string;
 }
@@ -90,6 +90,10 @@ export class AuthService {
 
   getProfile(): Observable<UserProfile> {
     return this.http.get<UserProfile>(`${this.apiUrl}/auth/me`);
+  }
+
+  refreshProfile(): Observable<UserProfile> {
+    return this.loadProfile();
   }
 
   refreshAccessToken(): Observable<string> {

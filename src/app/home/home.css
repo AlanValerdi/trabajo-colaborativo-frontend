@@ -667,6 +667,47 @@ h2 {
   border: 1px solid var(--border-color);
 }
 
+.users-table-wrap {
+  overflow-x: auto;
+}
+
+.users-table .user-email {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.users-table .role-col {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.role-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.role-checkbox input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.primary.compact {
+  height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.82rem;
+}
+
+.users-error {
+  margin: 0 0 0.75rem;
+}
+
 @media (max-width: 700px) {
   .desktop-search {
     display: none;

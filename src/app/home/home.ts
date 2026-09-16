@@ -3,7 +3,9 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ReportCard } from '../report-card/report-card';
 import { ApiReport, ReportsApiService } from '../data/reports-api.service';
-import { ROLES } from '../data/roles';
+import { ROLES, roleSlugToBackend } from '../data/roles';
+import { ApiUser, UsersApiService } from '../data/users-api.service';
+import { RoleSlug } from '../data/models';
 import { RoleSessionService } from '../session/role-session.service';
 import { AuthService } from '../auth/auth.service';
 import { HomeSearchService } from '../session/home-search.service';
@@ -42,6 +44,7 @@ type ConfirmAction = 'update' | 'delete';
 export class Home implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(ReportsApiService);
+  private readonly usersApi = inject(UsersApiService);
   private readonly auth = inject(AuthService);
   private readonly homeSearch = inject(HomeSearchService);
   protected readonly session = inject(RoleSessionService);
@@ -67,6 +70,12 @@ export class Home implements OnInit {
   protected readonly imagePreviewUrl = signal<string | null>(null);
   protected readonly selectedImageFile = signal<File | null>(null);
   protected readonly imageError = signal<string | null>(null);
+  protected readonly users = signal<ApiUser[]>([]);
+  protected readonly usersLoading = signal(false);
+  protected readonly usersError = signal<string | null>(null);
+  protected readonly userRoleDrafts = signal<Record<number, string[]>>({});
+  protected readonly savingUserId = signal<number | null>(null);
+  protected readonly userSaveError = signal<string | null>(null);
 
   protected readonly searchQuery = this.homeSearch.query;
   protected readonly reports = signal<ApiReport[]>([]);
@@ -144,6 +153,108 @@ export class Home implements OnInit {
 
   ngOnInit(): void {
     this.loadReports();
+    if (this.roleSlug() === 'administrador') {
+      this.loadUsers();
+    }
+  }
+
+  protected setAdminContext(context: AdminContext): void {
+    this.adminContext.set(context);
+    if (context === 'usuarios') {
+      this.loadUsers();
+    }
+  }
+
+  protected loadUsers(): void {
+    this.usersLoading.set(true);
+    this.usersError.set(null);
+    this.usersApi.list().subscribe({
+      next: (items) => {
+        this.users.set(items);
+        const drafts: Record<number, string[]> = {};
+        for (const user of items) {
+          drafts[user.id] = [...user.roles];
+        }
+        this.userRoleDrafts.set(drafts);
+        this.usersLoading.set(false);
+      },
+      error: () => {
+        this.usersError.set('No se pudieron cargar los usuarios.');
+        this.usersLoading.set(false);
+      },
+    });
+  }
+
+  protected backendRoleValue(slug: RoleSlug): string {
+    return roleSlugToBackend(slug);
+  }
+
+  protected userHasDraftRole(userId: number, slug: RoleSlug): boolean {
+    const backendRole = this.backendRoleValue(slug);
+    return (this.userRoleDrafts()[userId] ?? []).includes(backendRole);
+  }
+
+  protected toggleUserRole(userId: number, slug: RoleSlug): void {
+    const backendRole = this.backendRoleValue(slug);
+    const current = [...(this.userRoleDrafts()[userId] ?? [])];
+    const index = current.indexOf(backendRole);
+
+    if (index >= 0) {
+      if (current.length <= 1) {
+        this.userSaveError.set('El usuario debe conservar al menos un rol.');
+        return;
+      }
+      current.splice(index, 1);
+    } else {
+      current.push(backendRole);
+    }
+
+    this.userSaveError.set(null);
+    this.userRoleDrafts.update((drafts) => ({
+      ...drafts,
+      [userId]: current,
+    }));
+  }
+
+  protected userRolesDirty(user: ApiUser): boolean {
+    const draft = this.userRoleDrafts()[user.id] ?? [];
+    if (draft.length !== user.roles.length) {
+      return true;
+    }
+    const saved = new Set(user.roles);
+    return draft.some((role) => !saved.has(role));
+  }
+
+  protected saveUserRoles(user: ApiUser): void {
+    const roles = this.userRoleDrafts()[user.id] ?? [];
+    if (roles.length === 0) {
+      this.userSaveError.set('El usuario debe conservar al menos un rol.');
+      return;
+    }
+
+    this.savingUserId.set(user.id);
+    this.userSaveError.set(null);
+    this.usersApi.updateRoles(user.id, roles).subscribe({
+      next: (updated) => {
+        this.users.update((items) =>
+          items.map((item) => (item.id === updated.id ? updated : item)),
+        );
+        this.userRoleDrafts.update((drafts) => ({
+          ...drafts,
+          [updated.id]: [...updated.roles],
+        }));
+        if (updated.id === this.auth.currentUser()?.id) {
+          this.auth.refreshProfile().subscribe();
+        }
+        this.savingUserId.set(null);
+      },
+      error: (err) => {
+        this.userSaveError.set(
+          err?.error?.detail ?? 'No se pudieron actualizar los roles del usuario.',
+        );
+        this.savingUserId.set(null);
+      },
+    });
   }
 
   protected loadReports(): void {
