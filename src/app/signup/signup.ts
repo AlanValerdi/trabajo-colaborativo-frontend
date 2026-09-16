@@ -4,10 +4,11 @@ import { Router, RouterLink } from '@angular/router';
 import { passwordsMatchValidator } from './passwords-match.validator';
 import { AuthService } from '../auth/auth.service';
 import { CommonModule } from '@angular/common';
+import { LucideClipboardList } from '@lucide/angular';
 
 @Component({
   selector: 'app-signup',
-  imports: [ReactiveFormsModule, RouterLink, CommonModule],
+  imports: [ReactiveFormsModule, RouterLink, CommonModule, LucideClipboardList],
   templateUrl: './signup.html',
   styleUrl: '../auth/auth-page.css',
 })

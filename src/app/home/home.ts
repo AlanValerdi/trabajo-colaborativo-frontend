@@ -7,13 +7,35 @@ import { ROLES } from '../data/roles';
 import { RoleSessionService } from '../session/role-session.service';
 import { AuthService } from '../auth/auth.service';
 import { HomeSearchService } from '../session/home-search.service';
+import {
+  LucideCamera,
+  LucideLink,
+  LucidePencil,
+  LucideTrash2,
+  LucideUpload,
+  LucideX,
+  LucideEye,
+} from '@lucide/angular';
 
 type AdminContext = 'usuarios' | 'roles' | 'espacios';
 type ImageSource = 'none' | 'url' | 'file' | 'camera';
+type DialogMode = 'create' | 'edit';
+type ConfirmAction = 'update' | 'delete';
 
 @Component({
   selector: 'app-home',
-  imports: [ReportCard, ReactiveFormsModule, RouterLink],
+  imports: [
+    ReportCard,
+    ReactiveFormsModule,
+    RouterLink,
+    LucideCamera,
+    LucideLink,
+    LucidePencil,
+    LucideTrash2,
+    LucideUpload,
+    LucideX,
+    LucideEye,
+  ],
   templateUrl: './home.html',
   styleUrl: './home.css',
 })
@@ -27,6 +49,12 @@ export class Home implements OnInit {
   protected readonly pageSize = 10;
   protected readonly roles = ROLES;
   protected readonly dialogOpen = signal(false);
+  protected readonly dialogMode = signal<DialogMode>('create');
+  protected readonly editingFolio = signal<string | null>(null);
+  protected readonly confirmOpen = signal(false);
+  protected readonly confirmAction = signal<ConfirmAction | null>(null);
+  protected readonly confirmError = signal<string | null>(null);
+  protected readonly deleteTarget = signal<ApiReport | null>(null);
   protected readonly createdTitle = signal<string | null>(null);
   protected readonly createdFolio = signal<string | null>(null);
   protected readonly submitError = signal<string | null>(null);
@@ -144,6 +172,8 @@ export class Home implements OnInit {
   }
 
   protected openDialog(): void {
+    this.dialogMode.set('create');
+    this.editingFolio.set(null);
     this.form.reset({
       title: '',
       campusLabel: '',
@@ -153,12 +183,67 @@ export class Home implements OnInit {
     });
     this.resetImageState();
     this.submitError.set(null);
+    this.confirmOpen.set(false);
+    this.confirmAction.set(null);
+    this.confirmError.set(null);
+    this.deleteTarget.set(null);
     this.dialogOpen.set(true);
+  }
+
+  protected openEditDialog(report: ApiReport): void {
+    if (report.status !== 'creado') {
+      return;
+    }
+    this.dialogMode.set('edit');
+    this.editingFolio.set(report.folio);
+    this.form.reset({
+      title: report.title,
+      campusLabel: report.campusLabel,
+      spaceLabel: report.spaceLabel,
+      description: report.description,
+      imageUrl: report.imageUrl ?? '',
+    });
+    this.resetImageState();
+    if (report.imageUrl) {
+      this.imageSource.set('url');
+      this.imagePreviewUrl.set(report.imageUrl);
+    }
+    this.submitError.set(null);
+    this.confirmOpen.set(false);
+    this.confirmAction.set(null);
+    this.confirmError.set(null);
+    this.deleteTarget.set(null);
+    this.dialogOpen.set(true);
+  }
+
+  protected requestDelete(report: ApiReport): void {
+    if (report.status !== 'creado') {
+      return;
+    }
+    this.deleteTarget.set(report);
+    this.confirmAction.set('delete');
+    this.confirmError.set(null);
+    this.confirmOpen.set(true);
   }
 
   protected closeDialog(): void {
     this.dialogOpen.set(false);
+    this.dialogMode.set('create');
+    this.editingFolio.set(null);
     this.resetImageState();
+  }
+
+  protected closeConfirm(): void {
+    if (this.confirmAction() === 'update') {
+      this.confirmOpen.set(false);
+      this.confirmAction.set(null);
+      this.confirmError.set(null);
+      return;
+    }
+    this.confirmOpen.set(false);
+    this.confirmAction.set(null);
+    this.confirmError.set(null);
+    this.deleteTarget.set(null);
   }
 
   protected setImageSource(source: ImageSource): void {
@@ -221,42 +306,57 @@ export class Home implements OnInit {
       return;
     }
 
-    const value = this.form.getRawValue();
+    if (this.dialogMode() === 'edit') {
+      this.confirmAction.set('update');
+      this.confirmError.set(null);
+      this.confirmOpen.set(true);
+      return;
+    }
+
     this.submitting.set(true);
     this.submitError.set(null);
     this.imageError.set(null);
+    this.resolveImageUrl((imageUrl) => this.performCreate(imageUrl));
+  }
 
-    const finalizeCreate = (imageUrl: string | null) => {
-      this.api
-        .create({
-          title: value.title,
-          campusLabel: value.campusLabel,
-          spaceLabel: value.spaceLabel,
-          description: value.description,
-          imageUrl,
-        })
-        .subscribe({
-          next: (report) => {
-            this.reports.update((items) => [report, ...items]);
-            this.dialogOpen.set(false);
-            this.resetImageState();
-            this.createdTitle.set(report.title);
-            this.createdFolio.set(report.folio);
-            this.submitting.set(false);
-          },
-          error: (err) => {
-            this.submitError.set(
-              err?.error?.detail ?? 'No se pudo crear el reporte. Intenta de nuevo.',
-            );
-            this.submitting.set(false);
-          },
-        });
-    };
+  protected confirmActionLabel(): string {
+    return this.confirmAction() === 'delete' ? 'Eliminar' : 'Confirmar';
+  }
 
+  protected confirmMessage(): string {
+    if (this.confirmAction() === 'delete') {
+      return '¿Estás seguro que deseas eliminar este reporte?';
+    }
+    return '¿Estás seguro que deseas realizar la modificación?';
+  }
+
+  protected executeConfirm(): void {
+    if (this.submitting()) {
+      return;
+    }
+    if (this.confirmAction() === 'delete') {
+      this.performDelete();
+      return;
+    }
+    if (this.confirmAction() === 'update') {
+      this.submitting.set(true);
+      this.confirmError.set(null);
+      this.submitError.set(null);
+      this.imageError.set(null);
+      this.resolveImageUrl((imageUrl) => this.performUpdate(imageUrl));
+    }
+  }
+
+  protected canMutateReport(report: ApiReport): boolean {
+    return report.status === 'creado';
+  }
+
+  private resolveImageUrl(onResolved: (imageUrl: string | null) => void): void {
+    const value = this.form.getRawValue();
     const file = this.selectedImageFile();
     if (file && (this.imageSource() === 'file' || this.imageSource() === 'camera')) {
       this.api.uploadImage(file).subscribe({
-        next: (response) => finalizeCreate(response.imageUrl),
+        next: (response) => onResolved(response.imageUrl),
         error: (err) => {
           this.imageError.set(err?.error?.detail ?? 'No se pudo subir la imagen.');
           this.submitting.set(false);
@@ -264,9 +364,96 @@ export class Home implements OnInit {
       });
       return;
     }
+    onResolved(value.imageUrl.trim() || null);
+  }
 
-    const url = value.imageUrl.trim();
-    finalizeCreate(url || null);
+  private performCreate(imageUrl: string | null): void {
+    const value = this.form.getRawValue();
+    this.api
+      .create({
+        title: value.title,
+        campusLabel: value.campusLabel,
+        spaceLabel: value.spaceLabel,
+        description: value.description,
+        imageUrl,
+      })
+      .subscribe({
+        next: (report) => {
+          this.reports.update((items) => [report, ...items]);
+          this.dialogOpen.set(false);
+          this.resetImageState();
+          this.createdTitle.set(report.title);
+          this.createdFolio.set(report.folio);
+          this.submitting.set(false);
+        },
+        error: (err) => {
+          this.submitError.set(
+            err?.error?.detail ?? 'No se pudo crear el reporte. Intenta de nuevo.',
+          );
+          this.submitting.set(false);
+        },
+      });
+  }
+
+  private performUpdate(imageUrl: string | null): void {
+    const folio = this.editingFolio();
+    if (!folio) {
+      this.submitting.set(false);
+      return;
+    }
+    const value = this.form.getRawValue();
+    this.api
+      .update(folio, {
+        title: value.title,
+        campusLabel: value.campusLabel,
+        spaceLabel: value.spaceLabel,
+        description: value.description,
+        imageUrl,
+      })
+      .subscribe({
+        next: (report) => {
+          this.reports.update((items) =>
+            items.map((item) => (item.folio === folio ? report : item)),
+          );
+          this.confirmOpen.set(false);
+          this.confirmAction.set(null);
+          this.dialogOpen.set(false);
+          this.dialogMode.set('create');
+          this.editingFolio.set(null);
+          this.resetImageState();
+          this.submitting.set(false);
+        },
+        error: (err) => {
+          this.confirmError.set(
+            err?.error?.detail ?? 'No se pudo actualizar el reporte. Intenta de nuevo.',
+          );
+          this.submitting.set(false);
+        },
+      });
+  }
+
+  private performDelete(): void {
+    const report = this.deleteTarget();
+    if (!report) {
+      return;
+    }
+    this.submitting.set(true);
+    this.confirmError.set(null);
+    this.api.delete(report.folio).subscribe({
+      next: () => {
+        this.reports.update((items) => items.filter((item) => item.folio !== report.folio));
+        this.confirmOpen.set(false);
+        this.confirmAction.set(null);
+        this.deleteTarget.set(null);
+        this.submitting.set(false);
+      },
+      error: (err) => {
+        this.confirmError.set(
+          err?.error?.detail ?? 'No se pudo eliminar el reporte. Intenta de nuevo.',
+        );
+        this.submitting.set(false);
+      },
+    });
   }
 
   protected closeCreated(): void {

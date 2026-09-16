@@ -38,25 +38,52 @@
             <table class="data-table">
               <thead>
                 <tr>
+                  <th>Acción</th>
                   <th>Folio</th>
                   <th>Título</th>
+                  <th>Estado</th>
                   <th>Campus</th>
                   <th>Ubicación</th>
-                  <th>Estado</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 @for (report of pagedOwnReports(); track report.id) {
                   <tr>
+                    <td>
+                      <div class="table-actions">
+                        <button
+                          type="button"
+                          class="icon-action"
+                          aria-label="Ver reporte"
+                          [routerLink]="['/inicio/reportes', report.folio]"
+                        >
+                          <svg lucideEye aria-hidden="true"></svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="icon-action"
+                          aria-label="Editar reporte"
+                          [disabled]="!canMutateReport(report)"
+                          (click)="openEditDialog(report)"
+                        >
+                          <svg lucidePencil aria-hidden="true"></svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="icon-action icon-action-danger"
+                          aria-label="Eliminar reporte"
+                          [disabled]="!canMutateReport(report)"
+                          (click)="requestDelete(report)"
+                        >
+                          <svg lucideTrash2 aria-hidden="true"></svg>
+                        </button>
+                      </div>
+                    </td>
                     <td><code class="folio">{{ report.folio }}</code></td>
                     <td>{{ report.title }}</td>
+                    <td>{{ statusLabel(report.status) }}</td>    
                     <td>{{ report.campusLabel }}</td>
                     <td>{{ report.spaceLabel }}</td>
-                    <td>{{ statusLabel(report.status) }}</td>
-                    <td>
-                      <a class="table-link" [routerLink]="['/inicio/reportes', report.folio]">Ver</a>
-                    </td>
                   </tr>
                 }
               </tbody>
@@ -195,86 +222,106 @@
 
 @if (dialogOpen()) {
   <div
-    class="overlay"
+    class="overlay overlay-scroll"
     animate.enter="overlay-enter"
     animate.leave="overlay-leave"
     (click)="closeDialog()"
   >
     <section class="dialog" (click)="$event.stopPropagation()" role="dialog" aria-labelledby="create-title">
       <header>
-        <h2 id="create-title">Nuevo reporte</h2>
-        <button type="button" class="icon-close" (click)="closeDialog()" aria-label="Cerrar">×</button>
+        <h2 id="create-title">{{ dialogMode() === 'edit' ? 'Editar reporte' : 'Nuevo reporte' }}</h2>
+        <button type="button" class="icon-close" (click)="closeDialog()" aria-label="Cerrar">
+          <svg lucideX></svg>
+        </button>
       </header>
       <form [formGroup]="form" (ngSubmit)="submitReport()">
-        <label>
-          Título
-          <input type="text" formControlName="title" />
-        </label>
-        <label>
-          Campus
-          <input type="text" formControlName="campusLabel" placeholder="Ej. Campus Central" />
-        </label>
-        <label>
-          Ubicación
-          <input type="text" formControlName="spaceLabel" placeholder="Ej. CC04 - 304" />
-        </label>
-        <label>
-          Descripción
-          <textarea formControlName="description" rows="4"></textarea>
-        </label>
+        <div class="dialog-body">
+          @if (dialogMode() === 'edit' && editingFolio(); as folio) {
+            <div class="folio-readonly">
+              <span class="field-label">Folio</span>
+              <code class="folio">{{ folio }}</code>
+            </div>
+          }
+          <label>
+            Título
+            <input type="text" formControlName="title" />
+          </label>
+          <label>
+            Campus
+            <input type="text" formControlName="campusLabel" placeholder="Ej. Campus Central" />
+          </label>
+          <label>
+            Ubicación
+            <input type="text" formControlName="spaceLabel" placeholder="Ej. CC04 - 304" />
+          </label>
+          <label>
+            Descripción
+            <textarea formControlName="description" rows="4"></textarea>
+          </label>
 
-        <div class="image-field">
-          <span class="field-label">Imagen (opcional)</span>
-          <div class="image-actions">
-            <button
-              type="button"
-              class="ghost"
-              [class.active]="imageSource() === 'url'"
-              (click)="setImageSource('url')"
-            >
-              URL
-            </button>
-            <label class="ghost image-action-btn" [class.active]="imageSource() === 'file'">
-              Subir archivo
-              <input type="file" accept="image/*" hidden (change)="onImageFile($event, 'file')" />
-            </label>
-            <label class="ghost image-action-btn" [class.active]="imageSource() === 'camera'">
-              Tomar foto
+          <div class="image-field">
+            <span class="field-label">Imagen (opcional)</span>
+            <div class="image-actions">
+              <button
+                type="button"
+                class="ghost image-action-btn"
+                [class.active]="imageSource() === 'url'"
+                (click)="setImageSource('url')"
+              >
+                <svg lucideLink aria-hidden="true"></svg>
+                <span class="image-action-label">URL</span>
+              </button>
+              <label class="ghost image-action-btn" [class.active]="imageSource() === 'file'">
+                <svg lucideUpload aria-hidden="true"></svg>
+                <span class="image-action-label">Subir archivo</span>
+                <input type="file" accept="image/*" hidden (change)="onImageFile($event, 'file')" />
+              </label>
+              <label class="ghost image-action-btn" [class.active]="imageSource() === 'camera'">
+                <svg lucideCamera aria-hidden="true"></svg>
+                <span class="image-action-label">Tomar foto</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  hidden
+                  (change)="onImageFile($event, 'camera')"
+                />
+              </label>
+              @if (imagePreviewUrl()) {
+                <button type="button" class="ghost image-action-btn image-action-clear" (click)="clearImage()">
+                  <svg lucideX aria-hidden="true"></svg>
+                  <span class="image-action-label">Quitar</span>
+                </button>
+              }
+            </div>
+            @if (imageSource() === 'url') {
               <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                hidden
-                (change)="onImageFile($event, 'camera')"
+                type="url"
+                formControlName="imageUrl"
+                placeholder="https://ejemplo.com/imagen.jpg"
+                (input)="onImageUrlInput($event)"
               />
-            </label>
-            @if (imagePreviewUrl()) {
-              <button type="button" class="ghost" (click)="clearImage()">Quitar</button>
+            }
+            @if (imagePreviewUrl(); as preview) {
+              <img class="image-preview" [src]="preview" alt="Vista previa de la imagen" />
+            }
+            @if (imageError(); as imageErr) {
+              <p class="form-error">{{ imageErr }}</p>
             }
           </div>
-          @if (imageSource() === 'url') {
-            <input
-              type="url"
-              formControlName="imageUrl"
-              placeholder="https://ejemplo.com/imagen.jpg"
-              (input)="onImageUrlInput($event)"
-            />
-          }
-          @if (imagePreviewUrl(); as preview) {
-            <img class="image-preview" [src]="preview" alt="Vista previa de la imagen" />
-          }
-          @if (imageError(); as imageErr) {
-            <p class="form-error">{{ imageErr }}</p>
+
+          @if (submitError(); as error) {
+            <p class="form-error">{{ error }}</p>
           }
         </div>
-
-        @if (submitError(); as error) {
-          <p class="form-error">{{ error }}</p>
-        }
         <div class="dialog-actions">
           <button type="button" class="ghost" (click)="closeDialog()">Cancelar</button>
           <button type="submit" class="primary" [disabled]="submitting()">
-            {{ submitting() ? 'Publicando…' : 'Publicar' }}
+            @if (dialogMode() === 'edit') {
+              {{ submitting() ? 'Guardando…' : 'Guardar' }}
+            } @else {
+              {{ submitting() ? 'Publicando…' : 'Publicar' }}
+            }
           </button>
         </div>
       </form>
@@ -282,9 +329,46 @@
   </div>
 }
 
+@if (confirmOpen()) {
+  <div
+    class="overlay overlay-confirm"
+    animate.enter="overlay-enter"
+    animate.leave="overlay-leave"
+    (click)="closeConfirm()"
+  >
+    <section
+      class="dialog confirm-dialog"
+      (click)="$event.stopPropagation()"
+      role="dialog"
+      aria-labelledby="confirm-title"
+      aria-modal="true"
+    >
+      <h2 id="confirm-title">Confirmar acción</h2>
+      <p class="confirm-copy">{{ confirmMessage() }}</p>
+      @if (confirmError(); as error) {
+        <p class="form-error">{{ error }}</p>
+      }
+      <div class="dialog-actions">
+        <button type="button" class="ghost" [disabled]="submitting()" (click)="closeConfirm()">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="primary"
+          [class.danger]="confirmAction() === 'delete'"
+          [disabled]="submitting()"
+          (click)="executeConfirm()"
+        >
+          {{ submitting() ? 'Procesando…' : confirmActionLabel() }}
+        </button>
+      </div>
+    </section>
+  </div>
+}
+
 @if (createdTitle(); as title) {
   <div
-    class="overlay"
+    class="overlay overlay-confirm"
     animate.enter="overlay-enter"
     animate.leave="overlay-leave"
     (click)="closeCreated()"

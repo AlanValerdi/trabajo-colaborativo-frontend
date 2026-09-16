@@ -59,6 +59,14 @@ export class ReportsApiService {
     return this.http.post<ApiReport>(`${this.apiUrl}/reports/`, input);
   }
 
+  update(folio: string, input: CreateApiReportInput): Observable<ApiReport> {
+    return this.http.patch<ApiReport>(`${this.apiUrl}/reports/${folio}`, input);
+  }
+
+  delete(folio: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/reports/${folio}`);
+  }
+
   uploadImage(file: File): Observable<{ imageUrl: string }> {
     const formData = new FormData();
     formData.append('file', file);

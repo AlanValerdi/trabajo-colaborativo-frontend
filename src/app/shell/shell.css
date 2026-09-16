@@ -407,8 +407,17 @@
   display: flex;
   align-items: center;
   gap: 0.45rem;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
   font-size: 0.86rem;
   color: var(--breadcrumb-color);
+}
+
+.breadcrumb > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .breadcrumb a {
@@ -611,12 +620,9 @@
     gap: 0.5rem;
   }
 
-  .breadcrumb {
-    display: none;
-  }
-
   .topbar-search {
-    max-width: none;
+    flex: 1;
+    max-width: 9rem;
   }
 }
 

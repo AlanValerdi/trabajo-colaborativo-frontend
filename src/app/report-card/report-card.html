@@ -1,7 +1,7 @@
 @if (report(); as item) {
   <article class="card">
     <header class="card-head">
-      <strong class="author-name">{{ item.author.name }}</strong>
+      <strong class="card-title">{{ item.title }}</strong>
     </header>
 
     <div class="stats">
@@ -26,10 +26,18 @@
     }
 
     <div class="body">
-      <h3>{{ item.title }}</h3>
       <p>{{ item.description }}</p>
     </div>
 
     <a class="view-btn" [routerLink]="['/inicio/reportes', item.folio]">Ver reporte</a>
+    
+    <div class="user-chip">
+        <span class="avatar">{{ initials(item.author.name) }}</span>
+          <span class="user-copy">
+            <span class="user-name">
+              {{ item.author.name }}
+            </span>
+          </span>
+      </div>
   </article>
 }

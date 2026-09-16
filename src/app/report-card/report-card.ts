@@ -18,4 +18,16 @@ export class ReportCard {
     }
     return label.split(' - ').map((part) => part.trim());
   }
+
+  protected initials(name: string | undefined | null): string {
+    if (!name) return '';
+    return name
+      .split(' ')
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase();
+  }
+
+  
 }

@@ -8,13 +8,31 @@ import { RoleSessionService } from '../session/role-session.service';
 import { AuthService } from '../auth/auth.service';
 import { roleBySlug, roleSlugFromBackend } from '../data/roles';
 import { HomeSearchService } from '../session/home-search.service';
+import {
+  LucideChevronDown,
+  LucideClipboardList,
+  LucideHouse,
+  LucideLogOut,
+  LucidePanelLeft,
+  LucideUsers,
+} from '@lucide/angular';
 
 const MOBILE_QUERY = '(max-width: 860px)';
 const SEARCH_MOBILE_QUERY = '(max-width: 700px)';
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    LucideHouse,
+    LucideUsers,
+    LucideLogOut,
+    LucidePanelLeft,
+    LucideClipboardList,
+    LucideChevronDown,
+  ],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
 })
