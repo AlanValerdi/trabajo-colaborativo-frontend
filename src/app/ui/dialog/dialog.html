@@ -1,0 +1,31 @@
+@if (open()) {
+  <div
+    class="overlay"
+    [class.overlay-confirm]="layer() === 'confirm'"
+    animate.enter="overlay-enter"
+    animate.leave="overlay-leave"
+    (click)="onBackdropClick($event)"
+  >
+    <section
+      class="dialog"
+      [class.confirm-dialog]="layer() === 'confirm'"
+      (click)="$event.stopPropagation()"
+      role="dialog"
+      [attr.aria-labelledby]="title() ? titleId() : null"
+      aria-modal="true"
+    >
+      @if (title()) {
+        <header>
+          <h2 [id]="titleId()">{{ title() }}</h2>
+          @if (showClose()) {
+            <button type="button" class="icon-close" (click)="close()" aria-label="Cerrar">
+              <svg lucideX></svg>
+            </button>
+          }
+        </header>
+      }
+      <ng-content />
+      <ng-content select="[dialog-actions]" />
+    </section>
+  </div>
+}

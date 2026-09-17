@@ -16,6 +16,8 @@ import {
   LucidePanelLeft,
   LucideUsers,
 } from '@lucide/angular';
+import { Confirm } from '../ui/confirm/confirm';
+import { Toast } from '../ui/toast/toast';
 
 const MOBILE_QUERY = '(max-width: 860px)';
 const SEARCH_MOBILE_QUERY = '(max-width: 700px)';
@@ -32,6 +34,8 @@ const SEARCH_MOBILE_QUERY = '(max-width: 700px)';
     LucidePanelLeft,
     LucideClipboardList,
     LucideChevronDown,
+    Toast,
+    Confirm,
   ],
   templateUrl: './shell.html',
   styleUrl: './shell.css',

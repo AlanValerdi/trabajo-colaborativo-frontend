@@ -24,7 +24,10 @@
   @if (result(); as report) {
     <article class="detail">
       <h2>{{ report.title }}</h2>
-      <p class="meta">Folio #{{ report.id }} · {{ report.campusLabel }} · {{ report.spaceLabel }}</p>
+      <p class="meta">
+        Folio #{{ report.id }} · {{ report.campusLabel }} · {{ report.facultyLabel || '—' }} ·
+        {{ report.spaceLabel }}
+      </p>
 
       <app-report-status-timeline [status]="report.status" />
 

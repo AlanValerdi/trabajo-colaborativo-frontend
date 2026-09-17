@@ -1,21 +1,22 @@
 @if (report(); as item) {
   <article class="card">
     <header class="card-head">
+      <span class="card-campus">{{ item.campusLabel || '—' }}</span>
       <strong class="card-title">{{ item.title }}</strong>
     </header>
 
     <div class="stats">
       <div>
-        <strong>{{ item.campusLabel }}</strong>
         <span>Campus</span>
+        <strong>{{ item.campusLabel }}</strong>
       </div>
       <div>
+        <span>Ubicación</span>
         <strong>
           @for (line of locationLines(item.spaceLabel); track line) {
             <span class="loc-line">{{ line }}</span>
           }
         </strong>
-        <span>Ubicación</span>
       </div>
     </div>
 

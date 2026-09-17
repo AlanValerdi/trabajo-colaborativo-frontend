@@ -4,13 +4,6 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ReportStatus } from './models';
 
-/**
- * Representa un reporte tal como lo entrega el backend real (HU-4).
- * Se mantiene separado de `Report` (models.ts) porque ese tipo asume
- * un catalogo de Campus/Space (campusId/spaceId) que Equipo 1 (HU-03)
- * todavia no entrega. En el backend, por ahora, campus/espacio viajan
- * como texto libre (campusLabel/spaceLabel).
- */
 export interface ReportAuthor {
   id: number;
   name: string;
@@ -22,7 +15,11 @@ export interface ApiReport {
   title: string;
   description: string;
   campusLabel: string;
+  facultyLabel: string;
   spaceLabel: string;
+  campusId: number | null;
+  facultyId: number | null;
+  locationId: number | null;
   status: ReportStatus;
   imageUrl: string | null;
   authorId: number;
@@ -37,8 +34,9 @@ export interface ApiReport {
 export interface CreateApiReportInput {
   title: string;
   description: string;
-  campusLabel: string;
-  spaceLabel: string;
+  campusId: number;
+  facultyId: number;
+  locationId: number;
   imageUrl?: string | null;
 }
 

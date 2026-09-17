@@ -2,41 +2,58 @@ import { Component, computed, effect, inject, OnInit, signal } from '@angular/co
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ReportCard } from '../report-card/report-card';
-import { ApiReport, ReportsApiService } from '../data/reports-api.service';
+import {
+  ApiReport,
+  CreateApiReportInput,
+  ReportsApiService,
+} from '../data/reports-api.service';
+import {
+  Campus,
+  CatalogApiService,
+  Faculty,
+  Location,
+} from '../data/catalog-api.service';
 import { ROLES, roleSlugToBackend } from '../data/roles';
 import { ApiUser, UsersApiService } from '../data/users-api.service';
 import { RoleSlug } from '../data/models';
 import { RoleSessionService } from '../session/role-session.service';
 import { AuthService } from '../auth/auth.service';
 import { HomeSearchService } from '../session/home-search.service';
+import { ConfirmService } from '../ui/confirm/confirm.service';
+import { Dialog } from '../ui/dialog/dialog';
+import { ToastService } from '../ui/toast/toast.service';
 import {
   LucideCamera,
+  LucideEye,
   LucideLink,
   LucidePencil,
+  LucidePlus,
   LucideTrash2,
   LucideUpload,
   LucideX,
-  LucideEye,
 } from '@lucide/angular';
 
 type AdminContext = 'usuarios' | 'roles' | 'espacios';
+type CatalogContext = 'campus' | 'faculty' | 'location';
 type ImageSource = 'none' | 'url' | 'file' | 'camera';
 type DialogMode = 'create' | 'edit';
-type ConfirmAction = 'update' | 'delete';
+type CatalogDialogMode = 'create' | 'edit';
 
 @Component({
   selector: 'app-home',
   imports: [
     ReportCard,
+    Dialog,
     ReactiveFormsModule,
     RouterLink,
     LucideCamera,
+    LucideEye,
     LucideLink,
     LucidePencil,
+    LucidePlus,
     LucideTrash2,
     LucideUpload,
     LucideX,
-    LucideEye,
   ],
   templateUrl: './home.html',
   styleUrl: './home.css',
@@ -44,9 +61,12 @@ type ConfirmAction = 'update' | 'delete';
 export class Home implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(ReportsApiService);
+  private readonly catalogApi = inject(CatalogApiService);
   private readonly usersApi = inject(UsersApiService);
   private readonly auth = inject(AuthService);
   private readonly homeSearch = inject(HomeSearchService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   protected readonly session = inject(RoleSessionService);
 
   protected readonly pageSize = 10;
@@ -54,9 +74,6 @@ export class Home implements OnInit {
   protected readonly dialogOpen = signal(false);
   protected readonly dialogMode = signal<DialogMode>('create');
   protected readonly editingFolio = signal<string | null>(null);
-  protected readonly confirmOpen = signal(false);
-  protected readonly confirmAction = signal<ConfirmAction | null>(null);
-  protected readonly confirmError = signal<string | null>(null);
   protected readonly deleteTarget = signal<ApiReport | null>(null);
   protected readonly createdTitle = signal<string | null>(null);
   protected readonly createdFolio = signal<string | null>(null);
@@ -65,6 +82,7 @@ export class Home implements OnInit {
   protected readonly loading = signal(true);
   protected readonly loadError = signal<string | null>(null);
   protected readonly adminContext = signal<AdminContext>('usuarios');
+  protected readonly catalogContext = signal<CatalogContext>('campus');
   protected readonly page = signal(1);
   protected readonly imageSource = signal<ImageSource>('none');
   protected readonly imagePreviewUrl = signal<string | null>(null);
@@ -77,15 +95,51 @@ export class Home implements OnInit {
   protected readonly savingUserId = signal<number | null>(null);
   protected readonly userSaveError = signal<string | null>(null);
 
+  protected readonly campuses = signal<Campus[]>([]);
+  protected readonly faculties = signal<Faculty[]>([]);
+  protected readonly locations = signal<Location[]>([]);
+  protected readonly catalogLoading = signal(false);
+  protected readonly catalogError = signal<string | null>(null);
+  protected readonly catalogDialogOpen = signal(false);
+  protected readonly catalogDialogMode = signal<CatalogDialogMode>('create');
+  protected readonly catalogDialogType = signal<CatalogContext>('campus');
+  protected readonly catalogEditingId = signal<number | null>(null);
+  protected readonly catalogSubmitError = signal<string | null>(null);
+  protected readonly catalogSubmitting = signal(false);
+  protected readonly catalogDeleteType = signal<CatalogContext>('campus');
+  protected readonly catalogDeleteId = signal<number | null>(null);
+  protected readonly catalogDeleteLabel = signal('');
+
+  protected readonly reportFaculties = signal<Faculty[]>([]);
+  protected readonly reportLocations = signal<Location[]>([]);
+  protected readonly catalogLocationFaculties = signal<Faculty[]>([]);
+
   protected readonly searchQuery = this.homeSearch.query;
   protected readonly reports = signal<ApiReport[]>([]);
 
   protected readonly form = this.fb.nonNullable.group({
     title: ['', Validators.required],
-    campusLabel: ['', Validators.required],
-    spaceLabel: ['', Validators.required],
+    campusId: [null as number | null, Validators.required],
+    facultyId: [null as number | null, Validators.required],
+    locationId: [null as number | null, Validators.required],
     description: ['', Validators.required],
     imageUrl: [''],
+  });
+
+  protected readonly catalogCampusForm = this.fb.nonNullable.group({
+    code: ['', Validators.required],
+    name: ['', Validators.required],
+  });
+
+  protected readonly catalogFacultyForm = this.fb.nonNullable.group({
+    campusId: [null as number | null, Validators.required],
+    name: ['', Validators.required],
+  });
+
+  protected readonly catalogLocationForm = this.fb.nonNullable.group({
+    campusId: [null as number | null, Validators.required],
+    facultyId: [null as number | null, Validators.required],
+    name: ['', Validators.required],
   });
 
   protected readonly roleSlug = this.session.currentSlug;
@@ -145,6 +199,9 @@ export class Home implements OnInit {
   );
 
   constructor() {
+    this.form.controls.facultyId.disable({ emitEvent: false });
+    this.form.controls.locationId.disable({ emitEvent: false });
+    this.catalogLocationForm.controls.facultyId.disable({ emitEvent: false });
     effect(() => {
       this.searchQuery();
       this.page.set(1);
@@ -156,6 +213,9 @@ export class Home implements OnInit {
     if (this.roleSlug() === 'administrador') {
       this.loadUsers();
     }
+    if (this.roleSlug() === 'reportante' || this.roleSlug() === 'administrador') {
+      this.loadCampuses();
+    }
   }
 
   protected setAdminContext(context: AdminContext): void {
@@ -163,6 +223,442 @@ export class Home implements OnInit {
     if (context === 'usuarios') {
       this.loadUsers();
     }
+    if (context === 'espacios') {
+      this.loadCatalogData();
+    }
+  }
+
+  protected setCatalogContext(context: CatalogContext): void {
+    this.catalogContext.set(context);
+    this.loadCatalogData();
+  }
+
+  protected campusName(campusId: number): string {
+    return this.campuses().find((item) => item.id === campusId)?.name ?? `#${campusId}`;
+  }
+
+  protected facultyName(facultyId: number): string {
+    return this.faculties().find((item) => item.id === facultyId)?.name ?? `#${facultyId}`;
+  }
+
+  protected locationCampusName(location: Location): string {
+    const faculty = this.faculties().find((item) => item.id === location.facultyId);
+    if (!faculty) {
+      return '—';
+    }
+    return this.campusName(faculty.campusId);
+  }
+
+  protected loadCampuses(): void {
+    this.catalogApi.listCampuses().subscribe({
+      next: (items) => this.campuses.set(items),
+      error: () => {},
+    });
+  }
+
+  protected loadCatalogData(): void {
+    this.catalogLoading.set(true);
+    this.catalogError.set(null);
+
+    this.catalogApi.listCampuses().subscribe({
+      next: (campusItems) => {
+        this.campuses.set(campusItems);
+        this.catalogApi.listFaculties().subscribe({
+          next: (facultyItems) => {
+            this.faculties.set(facultyItems);
+            this.catalogApi.listLocations().subscribe({
+              next: (locationItems) => {
+                this.locations.set(locationItems);
+                this.catalogLoading.set(false);
+              },
+              error: () => {
+                this.catalogError.set('No se pudieron cargar las ubicaciones.');
+                this.catalogLoading.set(false);
+              },
+            });
+          },
+          error: () => {
+            this.catalogError.set('No se pudieron cargar las facultades.');
+            this.catalogLoading.set(false);
+          },
+        });
+      },
+      error: () => {
+        this.catalogError.set('No se pudieron cargar los campuses.');
+        this.catalogLoading.set(false);
+      },
+    });
+  }
+
+  protected openCatalogDialog(type: CatalogContext, mode: CatalogDialogMode, item?: Campus | Faculty | Location): void {
+    this.catalogDialogType.set(type);
+    this.catalogDialogMode.set(mode);
+    this.catalogSubmitError.set(null);
+    this.catalogLocationFaculties.set([]);
+
+    if (type === 'campus') {
+      if (mode === 'create') {
+        this.catalogEditingId.set(null);
+        this.catalogCampusForm.reset({ code: '', name: '' });
+      } else if (item && 'code' in item) {
+        this.catalogEditingId.set(item.id);
+        this.catalogCampusForm.reset({ code: item.code, name: item.name });
+      }
+    } else if (type === 'faculty') {
+      if (mode === 'create') {
+        this.catalogEditingId.set(null);
+        this.catalogFacultyForm.reset({ campusId: null, name: '' });
+      } else if (item && 'campusId' in item) {
+        this.catalogEditingId.set(item.id);
+        this.catalogFacultyForm.reset({ campusId: item.campusId, name: item.name });
+      }
+    } else if (type === 'location') {
+      if (mode === 'create') {
+        this.catalogEditingId.set(null);
+        this.catalogLocationForm.reset({ campusId: null, facultyId: null, name: '' });
+      } else if (item && 'facultyId' in item) {
+        this.catalogEditingId.set(item.id);
+        const faculty = this.faculties().find((f) => f.id === item.facultyId);
+        this.catalogLocationFaculties.set(
+          faculty ? this.faculties().filter((f) => f.campusId === faculty.campusId) : [],
+        );
+        this.catalogLocationForm.reset({
+          campusId: faculty?.campusId ?? null,
+          facultyId: item.facultyId,
+          name: item.name,
+        });
+      }
+      this.syncCatalogLocationFacultyEnabled();
+    }
+
+    this.catalogDialogOpen.set(true);
+  }
+
+  protected closeCatalogDialog(): void {
+    this.catalogDialogOpen.set(false);
+    this.catalogEditingId.set(null);
+    this.catalogSubmitError.set(null);
+    this.confirm.close();
+  }
+
+  private parseSelectId(event: Event): number | null {
+    const raw = (event.target as HTMLSelectElement).value;
+    const value = Number(raw);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  private toRequiredId(value: unknown): number | null {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  private catalogTypeLabel(type: CatalogContext): string {
+    const labels: Record<CatalogContext, string> = {
+      campus: 'campus',
+      faculty: 'facultad',
+      location: 'ubicación',
+    };
+    return labels[type];
+  }
+
+  private syncCatalogLocationFacultyEnabled(): void {
+    const campusId = this.toRequiredId(this.catalogLocationForm.getRawValue().campusId);
+    if (campusId) {
+      this.catalogLocationForm.controls.facultyId.enable({ emitEvent: false });
+    } else {
+      this.catalogLocationForm.controls.facultyId.disable({ emitEvent: false });
+    }
+  }
+
+  private syncReportChainEnabled(): void {
+    const campusId = this.toRequiredId(this.form.getRawValue().campusId);
+    const facultyId = this.toRequiredId(this.form.getRawValue().facultyId);
+    if (campusId) {
+      this.form.controls.facultyId.enable({ emitEvent: false });
+    } else {
+      this.form.controls.facultyId.disable({ emitEvent: false });
+    }
+    if (facultyId) {
+      this.form.controls.locationId.enable({ emitEvent: false });
+    } else {
+      this.form.controls.locationId.disable({ emitEvent: false });
+    }
+  }
+
+  protected onCatalogLocationCampusChange(event: Event): void {
+    const campusId = this.parseSelectId(event);
+    this.catalogLocationForm.patchValue({ campusId, facultyId: null });
+    this.syncCatalogLocationFacultyEnabled();
+    if (campusId) {
+      this.catalogApi.listFaculties(campusId).subscribe({
+        next: (items) => this.catalogLocationFaculties.set(items),
+      });
+    } else {
+      this.catalogLocationFaculties.set([]);
+    }
+  }
+
+  protected onCatalogFacultyCampusChange(event: Event): void {
+    const campusId = this.parseSelectId(event);
+    this.catalogFacultyForm.patchValue({ campusId });
+  }
+
+  protected onCatalogLocationFacultyChange(event: Event): void {
+    const facultyId = this.parseSelectId(event);
+    this.catalogLocationForm.patchValue({ facultyId });
+  }
+
+  private catalogFormIsValid(): boolean {
+    const type = this.catalogDialogType();
+    if (type === 'campus') {
+      this.catalogCampusForm.markAllAsTouched();
+      return this.catalogCampusForm.valid;
+    }
+    if (type === 'faculty') {
+      this.catalogFacultyForm.markAllAsTouched();
+      const campusId = this.toRequiredId(this.catalogFacultyForm.getRawValue().campusId);
+      return this.catalogFacultyForm.valid && campusId != null;
+    }
+    this.catalogLocationForm.markAllAsTouched();
+    const value = this.catalogLocationForm.getRawValue();
+    return (
+      this.catalogLocationForm.valid &&
+      this.toRequiredId(value.campusId) != null &&
+      this.toRequiredId(value.facultyId) != null
+    );
+  }
+
+  protected submitCatalogDialog(): void {
+    this.catalogSubmitError.set(null);
+    if (!this.catalogFormIsValid()) {
+      this.catalogSubmitError.set('Completa todos los campos antes de guardar.');
+      return;
+    }
+    this.confirm.ask({
+      message: this.catalogSaveConfirmMessage(),
+      confirmLabel: 'Confirmar',
+      onConfirm: () => this.performCatalogSave(),
+    });
+  }
+
+  private catalogSaveConfirmMessage(): string {
+    const mode = this.catalogDialogMode();
+    const type = this.catalogTypeLabel(this.catalogDialogType());
+    if (mode === 'create') {
+      const article = type === 'campus' ? 'este' : 'esta';
+      return `¿Crear ${article} ${type}?`;
+    }
+    return '¿Guardar los cambios?';
+  }
+
+  private performCatalogSave(): void {
+    if (this.catalogSubmitting()) {
+      return;
+    }
+    const type = this.catalogDialogType();
+    const mode = this.catalogDialogMode();
+    this.catalogSubmitting.set(true);
+    this.catalogSubmitError.set(null);
+    this.confirm.setBusy(true);
+    this.confirm.setError(null);
+
+    if (type === 'campus') {
+      const value = this.catalogCampusForm.getRawValue();
+      const request =
+        mode === 'create'
+          ? this.catalogApi.createCampus(value)
+          : this.catalogApi.updateCampus(this.catalogEditingId()!, value);
+      request.subscribe({
+        next: () => {
+          this.catalogSubmitting.set(false);
+          this.confirm.close();
+          this.closeCatalogDialog();
+          this.loadCatalogData();
+          this.loadCampuses();
+          this.toast.show(mode === 'create' ? 'Campus creado' : 'Campus actualizado');
+        },
+        error: (err) => {
+          this.confirm.setError(err?.error?.detail ?? 'No se pudo guardar el campus.');
+          this.catalogSubmitting.set(false);
+          this.confirm.setBusy(false);
+        },
+      });
+      return;
+    }
+
+    if (type === 'faculty') {
+      const value = this.catalogFacultyForm.getRawValue();
+      const campusId = this.toRequiredId(value.campusId);
+      if (campusId == null) {
+        this.confirm.setError('Selecciona un campus.');
+        this.catalogSubmitting.set(false);
+        this.confirm.setBusy(false);
+        return;
+      }
+      const payload = { campusId, name: value.name };
+      const request =
+        mode === 'create'
+          ? this.catalogApi.createFaculty(payload)
+          : this.catalogApi.updateFaculty(this.catalogEditingId()!, payload);
+      request.subscribe({
+        next: () => {
+          this.catalogSubmitting.set(false);
+          this.confirm.close();
+          this.closeCatalogDialog();
+          this.loadCatalogData();
+          this.toast.show(mode === 'create' ? 'Facultad creada' : 'Facultad actualizada');
+        },
+        error: (err) => {
+          this.confirm.setError(err?.error?.detail ?? 'No se pudo guardar la facultad.');
+          this.catalogSubmitting.set(false);
+          this.confirm.setBusy(false);
+        },
+      });
+      return;
+    }
+
+    const value = this.catalogLocationForm.getRawValue();
+    const facultyId = this.toRequiredId(value.facultyId);
+    if (facultyId == null) {
+      this.confirm.setError('Selecciona una facultad.');
+      this.catalogSubmitting.set(false);
+      this.confirm.setBusy(false);
+      return;
+    }
+    const payload = { facultyId, name: value.name };
+    const request =
+      mode === 'create'
+        ? this.catalogApi.createLocation(payload)
+        : this.catalogApi.updateLocation(this.catalogEditingId()!, payload);
+    request.subscribe({
+      next: () => {
+        this.catalogSubmitting.set(false);
+        this.confirm.close();
+        this.closeCatalogDialog();
+        this.loadCatalogData();
+        this.toast.show(mode === 'create' ? 'Ubicación creada' : 'Ubicación actualizada');
+      },
+      error: (err) => {
+        this.confirm.setError(err?.error?.detail ?? 'No se pudo guardar la ubicación.');
+        this.catalogSubmitting.set(false);
+        this.confirm.setBusy(false);
+      },
+    });
+  }
+
+  protected requestCatalogDelete(type: CatalogContext, id: number, label: string): void {
+    this.catalogDeleteType.set(type);
+    this.catalogDeleteId.set(id);
+    this.catalogDeleteLabel.set(label);
+    this.catalogSubmitError.set(null);
+    this.confirm.ask({
+      message: `¿Eliminar ${label}?`,
+      confirmLabel: 'Eliminar',
+      danger: true,
+      onConfirm: () => this.performCatalogDelete(),
+    });
+  }
+
+  private performCatalogDelete(): void {
+    const type = this.catalogDeleteType();
+    const id = this.catalogDeleteId();
+    if (id == null) {
+      return;
+    }
+    this.catalogSubmitting.set(true);
+    this.catalogSubmitError.set(null);
+    this.confirm.setBusy(true);
+    this.confirm.setError(null);
+
+    const request =
+      type === 'campus'
+        ? this.catalogApi.deleteCampus(id)
+        : type === 'faculty'
+          ? this.catalogApi.deleteFaculty(id)
+          : this.catalogApi.deleteLocation(id);
+
+    request.subscribe({
+      next: () => {
+        this.catalogSubmitting.set(false);
+        this.confirm.close();
+        this.catalogDeleteId.set(null);
+        this.catalogDeleteLabel.set('');
+        this.loadCatalogData();
+        this.loadCampuses();
+        const labels: Record<CatalogContext, string> = {
+          campus: 'Campus eliminado',
+          faculty: 'Facultad eliminada',
+          location: 'Ubicación eliminada',
+        };
+        this.toast.show(labels[type]);
+      },
+      error: (err) => {
+        this.confirm.setError(err?.error?.detail ?? 'No se pudo eliminar el registro.');
+        this.catalogSubmitting.set(false);
+        this.confirm.setBusy(false);
+      },
+    });
+  }
+
+  protected catalogDialogTitle(): string {
+    const mode = this.catalogDialogMode();
+    const type = this.catalogDialogType();
+    const labels: Record<CatalogContext, string> = {
+      campus: 'campus',
+      faculty: 'facultad',
+      location: 'ubicación',
+    };
+    return mode === 'create' ? `Nuevo ${labels[type]}` : `Editar ${labels[type]}`;
+  }
+
+  protected onReportCampusChange(event: Event): void {
+    const campusId = this.parseSelectId(event);
+    this.form.patchValue({ campusId, facultyId: null, locationId: null });
+    this.reportFaculties.set([]);
+    this.reportLocations.set([]);
+    this.syncReportChainEnabled();
+    if (campusId) {
+      this.catalogApi.listFaculties(campusId).subscribe({
+        next: (items) => this.reportFaculties.set(items),
+      });
+    }
+  }
+
+  protected onReportFacultyChange(event: Event): void {
+    const facultyId = this.parseSelectId(event);
+    this.form.patchValue({ facultyId, locationId: null });
+    this.reportLocations.set([]);
+    this.syncReportChainEnabled();
+    if (facultyId) {
+      this.catalogApi.listLocations(facultyId).subscribe({
+        next: (items) => this.reportLocations.set(items),
+      });
+    }
+  }
+
+  private loadReportHierarchy(
+    campusId: number | null,
+    facultyId: number | null,
+    locationId: number | null,
+  ): void {
+    this.reportFaculties.set([]);
+    this.reportLocations.set([]);
+    this.form.patchValue({ campusId, facultyId, locationId });
+    this.syncReportChainEnabled();
+    if (!campusId) {
+      return;
+    }
+    this.catalogApi.listFaculties(campusId).subscribe({
+      next: (faculties) => {
+        this.reportFaculties.set(faculties);
+        if (!facultyId) {
+          return;
+        }
+        this.catalogApi.listLocations(facultyId).subscribe({
+          next: (locations) => this.reportLocations.set(locations),
+        });
+      },
+    });
   }
 
   protected loadUsers(): void {
@@ -232,8 +728,24 @@ export class Home implements OnInit {
       return;
     }
 
+    this.confirm.ask({
+      message: `¿Estás seguro que deseas actualizar los roles de ${user.name}?`,
+      confirmLabel: 'Confirmar',
+      onConfirm: () => this.performSaveUserRoles(user),
+    });
+  }
+
+  private performSaveUserRoles(user: ApiUser): void {
+    const roles = this.userRoleDrafts()[user.id] ?? [];
+    if (roles.length === 0) {
+      this.confirm.setError('El usuario debe conservar al menos un rol.');
+      return;
+    }
+
     this.savingUserId.set(user.id);
     this.userSaveError.set(null);
+    this.confirm.setBusy(true);
+    this.confirm.setError(null);
     this.usersApi.updateRoles(user.id, roles).subscribe({
       next: (updated) => {
         this.users.update((items) =>
@@ -247,12 +759,15 @@ export class Home implements OnInit {
           this.auth.refreshProfile().subscribe();
         }
         this.savingUserId.set(null);
+        this.confirm.close();
+        this.toast.show('Roles actualizados');
       },
       error: (err) => {
-        this.userSaveError.set(
+        this.confirm.setError(
           err?.error?.detail ?? 'No se pudieron actualizar los roles del usuario.',
         );
         this.savingUserId.set(null);
+        this.confirm.setBusy(false);
       },
     });
   }
@@ -287,16 +802,19 @@ export class Home implements OnInit {
     this.editingFolio.set(null);
     this.form.reset({
       title: '',
-      campusLabel: '',
-      spaceLabel: '',
+      campusId: null,
+      facultyId: null,
+      locationId: null,
       description: '',
       imageUrl: '',
     });
+    this.reportFaculties.set([]);
+    this.reportLocations.set([]);
+    this.syncReportChainEnabled();
+    this.loadCampuses();
     this.resetImageState();
     this.submitError.set(null);
-    this.confirmOpen.set(false);
-    this.confirmAction.set(null);
-    this.confirmError.set(null);
+    this.confirm.close();
     this.deleteTarget.set(null);
     this.dialogOpen.set(true);
   }
@@ -309,20 +827,21 @@ export class Home implements OnInit {
     this.editingFolio.set(report.folio);
     this.form.reset({
       title: report.title,
-      campusLabel: report.campusLabel,
-      spaceLabel: report.spaceLabel,
+      campusId: report.campusId,
+      facultyId: report.facultyId,
+      locationId: report.locationId,
       description: report.description,
       imageUrl: report.imageUrl ?? '',
     });
+    this.loadCampuses();
+    this.loadReportHierarchy(report.campusId, report.facultyId, report.locationId);
     this.resetImageState();
     if (report.imageUrl) {
       this.imageSource.set('url');
       this.imagePreviewUrl.set(report.imageUrl);
     }
     this.submitError.set(null);
-    this.confirmOpen.set(false);
-    this.confirmAction.set(null);
-    this.confirmError.set(null);
+    this.confirm.close();
     this.deleteTarget.set(null);
     this.dialogOpen.set(true);
   }
@@ -332,9 +851,12 @@ export class Home implements OnInit {
       return;
     }
     this.deleteTarget.set(report);
-    this.confirmAction.set('delete');
-    this.confirmError.set(null);
-    this.confirmOpen.set(true);
+    this.confirm.ask({
+      message: '¿Estás seguro que deseas eliminar este reporte?',
+      confirmLabel: 'Eliminar',
+      danger: true,
+      onConfirm: () => this.performDelete(),
+    });
   }
 
   protected closeDialog(): void {
@@ -342,19 +864,6 @@ export class Home implements OnInit {
     this.dialogMode.set('create');
     this.editingFolio.set(null);
     this.resetImageState();
-  }
-
-  protected closeConfirm(): void {
-    if (this.confirmAction() === 'update') {
-      this.confirmOpen.set(false);
-      this.confirmAction.set(null);
-      this.confirmError.set(null);
-      return;
-    }
-    this.confirmOpen.set(false);
-    this.confirmAction.set(null);
-    this.confirmError.set(null);
-    this.deleteTarget.set(null);
   }
 
   protected setImageSource(source: ImageSource): void {
@@ -413,14 +922,30 @@ export class Home implements OnInit {
 
   protected submitReport(): void {
     this.form.markAllAsTouched();
-    if (this.form.invalid || this.submitting()) {
+    const value = this.form.getRawValue();
+    const campusId = this.toRequiredId(value.campusId);
+    const facultyId = this.toRequiredId(value.facultyId);
+    const locationId = this.toRequiredId(value.locationId);
+    if (this.form.invalid || campusId == null || facultyId == null || locationId == null) {
+      this.submitError.set('Completa título, campus, facultad, ubicación y descripción.');
+      return;
+    }
+    if (this.submitting()) {
       return;
     }
 
     if (this.dialogMode() === 'edit') {
-      this.confirmAction.set('update');
-      this.confirmError.set(null);
-      this.confirmOpen.set(true);
+      this.confirm.ask({
+        message: '¿Estás seguro que deseas realizar la modificación?',
+        onConfirm: () => {
+          this.submitting.set(true);
+          this.confirm.setBusy(true);
+          this.confirm.setError(null);
+          this.submitError.set(null);
+          this.imageError.set(null);
+          this.resolveImageUrl((imageUrl) => this.performUpdate(imageUrl));
+        },
+      });
       return;
     }
 
@@ -428,34 +953,6 @@ export class Home implements OnInit {
     this.submitError.set(null);
     this.imageError.set(null);
     this.resolveImageUrl((imageUrl) => this.performCreate(imageUrl));
-  }
-
-  protected confirmActionLabel(): string {
-    return this.confirmAction() === 'delete' ? 'Eliminar' : 'Confirmar';
-  }
-
-  protected confirmMessage(): string {
-    if (this.confirmAction() === 'delete') {
-      return '¿Estás seguro que deseas eliminar este reporte?';
-    }
-    return '¿Estás seguro que deseas realizar la modificación?';
-  }
-
-  protected executeConfirm(): void {
-    if (this.submitting()) {
-      return;
-    }
-    if (this.confirmAction() === 'delete') {
-      this.performDelete();
-      return;
-    }
-    if (this.confirmAction() === 'update') {
-      this.submitting.set(true);
-      this.confirmError.set(null);
-      this.submitError.set(null);
-      this.imageError.set(null);
-      this.resolveImageUrl((imageUrl) => this.performUpdate(imageUrl));
-    }
   }
 
   protected canMutateReport(report: ApiReport): boolean {
@@ -471,6 +968,7 @@ export class Home implements OnInit {
         error: (err) => {
           this.imageError.set(err?.error?.detail ?? 'No se pudo subir la imagen.');
           this.submitting.set(false);
+          this.confirm.setBusy(false);
         },
       });
       return;
@@ -478,69 +976,82 @@ export class Home implements OnInit {
     onResolved(value.imageUrl.trim() || null);
   }
 
-  private performCreate(imageUrl: string | null): void {
+  private buildReportPayload(imageUrl: string | null): CreateApiReportInput | null {
     const value = this.form.getRawValue();
-    this.api
-      .create({
-        title: value.title,
-        campusLabel: value.campusLabel,
-        spaceLabel: value.spaceLabel,
-        description: value.description,
-        imageUrl,
-      })
-      .subscribe({
-        next: (report) => {
-          this.reports.update((items) => [report, ...items]);
-          this.dialogOpen.set(false);
-          this.resetImageState();
-          this.createdTitle.set(report.title);
-          this.createdFolio.set(report.folio);
-          this.submitting.set(false);
-        },
-        error: (err) => {
-          this.submitError.set(
-            err?.error?.detail ?? 'No se pudo crear el reporte. Intenta de nuevo.',
-          );
-          this.submitting.set(false);
-        },
-      });
+    const campusId = this.toRequiredId(value.campusId);
+    const facultyId = this.toRequiredId(value.facultyId);
+    const locationId = this.toRequiredId(value.locationId);
+    if (campusId == null || facultyId == null || locationId == null) {
+      this.submitError.set('Selecciona campus, facultad y ubicación.');
+      return null;
+    }
+    return {
+      title: value.title,
+      description: value.description,
+      campusId,
+      facultyId,
+      locationId,
+      imageUrl,
+    };
+  }
+
+  private performCreate(imageUrl: string | null): void {
+    const payload = this.buildReportPayload(imageUrl);
+    if (!payload) {
+      this.submitting.set(false);
+      return;
+    }
+    this.api.create(payload).subscribe({
+      next: (report) => {
+        this.reports.update((items) => [report, ...items]);
+        this.dialogOpen.set(false);
+        this.resetImageState();
+        this.createdTitle.set(report.title);
+        this.createdFolio.set(report.folio);
+        this.submitting.set(false);
+      },
+      error: (err) => {
+        this.submitError.set(
+          err?.error?.detail ?? 'No se pudo crear el reporte. Intenta de nuevo.',
+        );
+        this.submitting.set(false);
+      },
+    });
   }
 
   private performUpdate(imageUrl: string | null): void {
     const folio = this.editingFolio();
     if (!folio) {
       this.submitting.set(false);
+      this.confirm.setBusy(false);
       return;
     }
-    const value = this.form.getRawValue();
-    this.api
-      .update(folio, {
-        title: value.title,
-        campusLabel: value.campusLabel,
-        spaceLabel: value.spaceLabel,
-        description: value.description,
-        imageUrl,
-      })
-      .subscribe({
-        next: (report) => {
-          this.reports.update((items) =>
-            items.map((item) => (item.folio === folio ? report : item)),
-          );
-          this.confirmOpen.set(false);
-          this.confirmAction.set(null);
-          this.dialogOpen.set(false);
-          this.dialogMode.set('create');
-          this.editingFolio.set(null);
-          this.resetImageState();
-          this.submitting.set(false);
-        },
-        error: (err) => {
-          this.confirmError.set(
-            err?.error?.detail ?? 'No se pudo actualizar el reporte. Intenta de nuevo.',
-          );
-          this.submitting.set(false);
-        },
-      });
+    const payload = this.buildReportPayload(imageUrl);
+    if (!payload) {
+      this.submitting.set(false);
+      this.confirm.setBusy(false);
+      return;
+    }
+    this.api.update(folio, payload).subscribe({
+      next: (report) => {
+        this.reports.update((items) =>
+          items.map((item) => (item.folio === folio ? report : item)),
+        );
+        this.confirm.close();
+        this.dialogOpen.set(false);
+        this.dialogMode.set('create');
+        this.editingFolio.set(null);
+        this.resetImageState();
+        this.submitting.set(false);
+      },
+      error: (err) => {
+        this.confirm.setError(
+          err?.error?.detail ?? 'No se pudo actualizar el reporte. Intenta de nuevo.',
+        );
+        this.submitting.set(false);
+        this.confirm.setBusy(false);
+      },
+    });
   }
 
   private performDelete(): void {
@@ -549,20 +1060,21 @@ export class Home implements OnInit {
       return;
     }
     this.submitting.set(true);
-    this.confirmError.set(null);
+    this.confirm.setBusy(true);
+    this.confirm.setError(null);
     this.api.delete(report.folio).subscribe({
       next: () => {
         this.reports.update((items) => items.filter((item) => item.folio !== report.folio));
-        this.confirmOpen.set(false);
-        this.confirmAction.set(null);
+        this.confirm.close();
         this.deleteTarget.set(null);
         this.submitting.set(false);
       },
       error: (err) => {
-        this.confirmError.set(
+        this.confirm.setError(
           err?.error?.detail ?? 'No se pudo eliminar el reporte. Intenta de nuevo.',
         );
         this.submitting.set(false);
+        this.confirm.setBusy(false);
       },
     });
   }
@@ -588,4 +1100,6 @@ export class Home implements OnInit {
     this.imageError.set(null);
     this.form.controls.imageUrl.setValue('');
   }
+
+  
 }
