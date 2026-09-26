@@ -16,6 +16,7 @@ import {
 import { ROLES, roleSlugToBackend } from '../data/roles';
 import { ApiUser, UsersApiService } from '../data/users-api.service';
 import { RoleSlug } from '../data/models';
+import { statusLabel as labelForStatus } from '../data/report-status';
 import { RoleSessionService } from '../session/role-session.service';
 import { AuthService } from '../auth/auth.service';
 import { HomeSearchService } from '../session/home-search.service';
@@ -181,7 +182,9 @@ export class Home implements OnInit {
   );
 
   protected readonly unassigned = computed(() =>
-    this.reports().filter((item) => item.classified && item.status === 'creado'),
+    this.reports().filter(
+      (item) => item.classified && item.assigneeId == null && item.status !== 'cerrada',
+    ),
   );
 
   protected readonly allReports = computed(() => this.reports());
@@ -191,11 +194,11 @@ export class Home implements OnInit {
   );
 
   protected readonly inProgress = computed(() =>
-    this.reports().filter((item) => item.status === 'en_revision'),
+    this.reports().filter((item) => item.status === 'en_progreso' || item.status === 'asignada'),
   );
 
   protected readonly assignedToMe = computed(() =>
-    this.reports().filter((item) => item.status === 'en_revision' || item.status === 'creado'),
+    this.reports().filter((item) => item.assigneeId === this.auth.currentUser()?.id),
   );
 
   constructor() {
@@ -820,7 +823,7 @@ export class Home implements OnInit {
   }
 
   protected openEditDialog(report: ApiReport): void {
-    if (report.status !== 'creado') {
+    if (report.status !== 'reportada') {
       return;
     }
     this.dialogMode.set('edit');
@@ -847,7 +850,7 @@ export class Home implements OnInit {
   }
 
   protected requestDelete(report: ApiReport): void {
-    if (report.status !== 'creado') {
+    if (report.status !== 'reportada') {
       return;
     }
     this.deleteTarget.set(report);
@@ -956,7 +959,7 @@ export class Home implements OnInit {
   }
 
   protected canMutateReport(report: ApiReport): boolean {
-    return report.status === 'creado';
+    return report.status === 'reportada';
   }
 
   private resolveImageUrl(onResolved: (imageUrl: string | null) => void): void {
@@ -1085,12 +1088,7 @@ export class Home implements OnInit {
   }
 
   protected statusLabel(status: ApiReport['status']): string {
-    const labels: Record<ApiReport['status'], string> = {
-      creado: 'Creado',
-      en_revision: 'En revisión',
-      resuelto: 'Resuelto',
-    };
-    return labels[status];
+    return labelForStatus(status);
   }
 
   private resetImageState(): void {

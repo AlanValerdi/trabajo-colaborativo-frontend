@@ -221,3 +221,37 @@
   font-weight: 500;
   line-height: 1.2;
 }
+
+.status-badge {
+  margin: 0;
+  align-self: flex-start;
+  display: inline-flex;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #eff6ff;
+  color: var(--color-primary);
+}
+
+.status-badge[data-status='en_progreso'],
+.status-badge[data-status='en_validacion'] {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.status-badge[data-status='resuelta'],
+.status-badge[data-status='cerrada'] {
+  background: #ecfdf3;
+  color: #16794c;
+}
+
+.status-badge[data-status='bloqueada'] {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.status-badge[data-status='reabierta'] {
+  background: #fff7ed;
+  color: #c2410c;
+}

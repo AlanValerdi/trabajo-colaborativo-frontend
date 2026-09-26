@@ -6,7 +6,27 @@ export type RoleSlug =
   | 'validador'
   | 'administrador';
 
-export type ReportStatus = 'creado' | 'en_revision' | 'resuelto';
+export type ReportStatus =
+  | 'reportada'
+  | 'validada'
+  | 'asignada'
+  | 'en_progreso'
+  | 'en_validacion'
+  | 'resuelta'
+  | 'cerrada'
+  | 'bloqueada'
+  | 'reabierta';
+
+export type IncidentCategory =
+  | 'infraestructura'
+  | 'electricidad'
+  | 'agua'
+  | 'ti'
+  | 'mobiliario'
+  | 'limpieza'
+  | 'seguridad'
+  | 'climatizacion'
+  | 'otro';
 
 export type Priority = 'baja' | 'media' | 'alta';
 

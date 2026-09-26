@@ -33,6 +33,138 @@
     }
 
     <p class="description">{{ view.description }}</p>
+
+    @if (view.category || view.priority || view.assigneeId) {
+      <hr class="rule" />
+      <section class="facts">
+        @if (view.category) {
+          <p><span>Categoría</span> {{ view.category }}</p>
+        }
+        @if (view.priority) {
+          <p><span>Prioridad</span> {{ view.priority }}</p>
+        }
+        @if (view.assigneeId) {
+          <p><span>Responsable</span> {{ personName(view.assigneeId) }}</p>
+        }
+      </section>
+    }
+
+    @if (showActions()) {
+      <hr class="rule" />
+      <section class="workflow">
+        <h2>Gestión</h2>
+
+        @if (canCategorize()) {
+          <form class="stack" (submit)="$event.preventDefault(); categorize()">
+            <label>
+              Categoría
+              <select [value]="category()" (change)="onCategory($event)" [disabled]="busy()">
+                <option value="">Selecciona</option>
+                @for (item of specialties(); track item.id) {
+                  <option [value]="item.category">{{ item.name }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              Prioridad
+              <select [value]="priority()" (change)="onPriority($event)" [disabled]="busy()">
+                <option value="">Selecciona</option>
+                <option value="baja">Baja</option>
+                <option value="media">Media</option>
+                <option value="alta">Alta</option>
+              </select>
+            </label>
+            <button type="submit" [disabled]="busy()">Categorizar</button>
+          </form>
+        }
+
+        @if (canAssign()) {
+          <form class="stack" (submit)="$event.preventDefault(); assign()">
+            <label>
+              Técnico
+              <select [value]="assigneeId() ?? ''" (change)="onAssignee($event)" [disabled]="busy()">
+                <option value="">Selecciona</option>
+                @for (tech of technicians(); track tech.id) {
+                  <option [value]="tech.id">{{ tech.name }}</option>
+                }
+              </select>
+            </label>
+            <button type="submit" [disabled]="busy()">Asignar</button>
+          </form>
+        }
+
+        <div class="actions">
+          @if (canValidate()) {
+            <button type="button" (click)="move('validada')" [disabled]="busy()">Validar</button>
+          }
+          @if (canStart()) {
+            <button type="button" (click)="move('en_progreso')" [disabled]="busy()">En progreso</button>
+          }
+          @if (canSendValidation()) {
+            <button type="button" (click)="move('en_validacion')" [disabled]="busy()">En validación</button>
+          }
+          @if (canResolve()) {
+            <button type="button" (click)="move('resuelta')" [disabled]="busy()">Resuelta</button>
+          }
+          @if (canClose()) {
+            <button type="button" (click)="move('cerrada')" [disabled]="busy()">Cerrar</button>
+          }
+          @if (canUnblock() && resumeStatus(); as resume) {
+            <button type="button" (click)="move(resume)" [disabled]="busy()">
+              Volver a {{ statusLabel(resume) }}
+            </button>
+          }
+        </div>
+
+        @if (canBlock() || canReopen()) {
+          <label class="stack">
+            Comentario
+            <textarea rows="3" [value]="comment()" (input)="onComment($event)" [disabled]="busy()"></textarea>
+          </label>
+          <div class="actions">
+            @if (canBlock()) {
+              <button type="button" (click)="move('bloqueada', true)" [disabled]="busy()">Bloquear</button>
+            }
+            @if (canReopen()) {
+              <button type="button" (click)="move('reabierta', true)" [disabled]="busy()">Reabrir</button>
+            }
+          </div>
+        }
+      </section>
+    }
+
+    @if (assignments().length) {
+      <hr class="rule" />
+      <section class="history">
+        <h2>Asignaciones</h2>
+        <ul>
+          @for (row of assignments(); track row.id) {
+            <li>
+              <strong>{{ personName(row.assigneeId) }}</strong>
+              <span>por {{ personName(row.assignedById) }} · {{ row.assignedAt | date: 'short' }}</span>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (events().length) {
+      <hr class="rule" />
+      <section class="history">
+        <h2>Estados</h2>
+        <ul>
+          @for (row of events(); track row.id) {
+            <li>
+              <strong>{{ statusLabel(row.fromStatus) }} → {{ statusLabel(row.toStatus) }}</strong>
+              <span>{{ personName(row.actorId) }} · {{ row.createdAt | date: 'short' }}</span>
+              @if (row.comment) {
+                <em>{{ row.comment }}</em>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
   </article>
 } @else {
   <div class="empty">

@@ -20,7 +20,7 @@
       </div>
     </div>
 
-    <app-report-status-timeline [status]="item.status" />
+    <p class="status-badge" [attr.data-status]="item.status">{{ statusLabel(item.status) }}</p>
 
     @if (item.imageUrl) {
       <img class="media" [src]="item.imageUrl" [alt]="item.title" />
