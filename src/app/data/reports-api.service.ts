@@ -44,6 +44,14 @@ export interface CreateApiReportInput {
   imageUrl?: string | null;
 }
 
+export interface ApiComment {
+  id: number;
+  report_id: number;
+  user_id: number;
+  content: string;
+  created_at: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ReportsApiService {
   private readonly http = inject(HttpClient);
@@ -97,6 +105,23 @@ export class ReportsApiService {
 
   listStatusEvents(folio: string): Observable<ApiStatusEvent[]> {
     return this.http.get<ApiStatusEvent[]>(`${this.apiUrl}/reports/${folio}/status-events`);
+  }
+
+  /* --- Métodos para Comentarios --- */
+  getComments(reportId: number): Observable<ApiComment[]> {
+    return this.http.get<ApiComment[]>(`${this.apiUrl}/reports/${reportId}/comments`);
+  }
+
+  createComment(reportId: number, content: string): Observable<ApiComment> {
+    return this.http.post<ApiComment>(`${this.apiUrl}/reports/${reportId}/comments`, { content });
+  }
+
+  updateComment(commentId: number, content: string): Observable<ApiComment> {
+    return this.http.put<ApiComment>(`${this.apiUrl}/comments/${commentId}`, { content });
+  }
+
+  deleteComment(commentId: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/comments/${commentId}`);
   }
 }
 

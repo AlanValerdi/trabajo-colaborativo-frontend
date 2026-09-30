@@ -6,6 +6,7 @@ import { AuthService } from '../auth/auth.service';
 import { IncidentCategory, Priority, ReportStatus, RoleSlug } from '../data/models';
 import {
   ApiAssignment,
+  ApiComment,
   ApiReport,
   ApiSpecialty,
   ApiStatusEvent,
@@ -46,6 +47,12 @@ export class ReportDetail implements OnInit, OnDestroy {
   protected readonly assignments = signal<ApiAssignment[]>([]);
   protected readonly events = signal<ApiStatusEvent[]>([]);
   protected readonly names = signal<Record<number, string>>({});
+
+  /* Signals para Comentarios */
+  protected readonly comments = signal<ApiComment[]>([]);
+  protected readonly newCommentText = signal('');
+  protected readonly editingCommentId = signal<number | null>(null);
+  protected readonly editingContent = signal('');
 
   protected readonly category = signal<IncidentCategory | ''>('');
   protected readonly priority = signal<Priority | ''>('');
@@ -128,22 +135,50 @@ export class ReportDetail implements OnInit, OnDestroy {
     this.folio = this.route.snapshot.paramMap.get('id') ?? '';
     this.loadReport();
     this.loadHistory();
+
     this.api.listSpecialties().subscribe({
       next: (items) => this.specialties.set(items),
       error: () => this.specialties.set([]),
     });
+
+    // Registrar al usuario logueado en el almacenamiento local de nombres
+    const currentUser = this.auth.currentUser();
+    if (currentUser && currentUser.name) {
+      try {
+        const known = JSON.parse(localStorage.getItem('known_user_names') || '{}');
+        known[Number(currentUser.id)] = currentUser.name;
+        localStorage.setItem('known_user_names', JSON.stringify(known));
+      } catch {}
+    }
+
+    // Cargar lista de usuarios (si el usuario tiene permisos) y mezclar con la memoria local
     this.usersApi.list().subscribe({
       next: (users) => {
-        const names: Record<number, string> = {};
+        let known: Record<number, string> = {};
+        try {
+          known = JSON.parse(localStorage.getItem('known_user_names') || '{}');
+        } catch {}
+
         for (const user of users) {
-          names[user.id] = user.name;
+          known[Number(user.id)] = user.name;
         }
-        this.names.set(names);
+        try {
+          localStorage.setItem('known_user_names', JSON.stringify(known));
+        } catch {}
+
+        this.names.set(known);
         this.technicians.set(users.filter((user) => user.is_active && user.roles.includes('tecnico')));
+        this.loadComments();
       },
       error: () => {
-        this.names.set({});
+        let known: Record<number, string> = {};
+        try {
+          known = JSON.parse(localStorage.getItem('known_user_names') || '{}');
+        } catch {}
+
+        this.names.set(known);
         this.technicians.set([]);
+        this.loadComments();
       },
     });
   }
@@ -152,15 +187,58 @@ export class ReportDetail implements OnInit, OnDestroy {
     this.crumbs.reportTitle.set(null);
   }
 
-  protected locationLines(label?: string): string[] {
-    if (!label) {
-      return ['—'];
+  protected cleanText(text?: string | null): string {
+    if (!text) return '—';
+    try {
+      return decodeURIComponent(escape(text));
+    } catch {
+      return text.replace(/Ã³/g, 'ó').replace(/Ã/g, 'á');
     }
-    return label.split(' - ').map((part) => part.trim());
   }
 
+  protected locationLines(label?: string): string[] {
+    if (!label || !label.trim()) {
+      return ['—'];
+    }
+    return label.split(' - ').map((part) => this.cleanText(part.trim()));
+  }
+
+  /* Resolución de nombres combinando memoria local y entidades */
   protected personName(id: number): string {
-    return this.names()[id] ?? `Usuario ${id}`;
+    const targetId = Number(id);
+
+    // 1. Consultar en la lista general / localStorage
+    const known = this.names();
+    if (known[targetId]) {
+      return known[targetId];
+    }
+
+    // 2. Coincidencia con autor del reporte
+    const reportItem = this.report();
+    if (reportItem && Number(reportItem.authorId) === targetId && reportItem.author?.name) {
+      return reportItem.author.name;
+    }
+
+    // 3. Coincidencia con usuario logueado en la sesión activa
+    const currentUser = this.auth.currentUser();
+    if (currentUser && Number(currentUser.id) === targetId && currentUser.name) {
+      return currentUser.name;
+    }
+
+    return `Usuario ${id}`;
+  }
+
+  protected personInitial(id: number): string {
+    const name = this.personName(id);
+    if (!name || name.startsWith('Usuario')) return 'U';
+    return name.charAt(0).toUpperCase();
+  }
+
+  /* Formateador seguro de fecha ISO */
+  protected formatDate(dateStr: string): string {
+    if (!dateStr) return '';
+    const formattedStr = dateStr.includes('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`;
+    return formattedStr;
   }
 
   protected onCategory(event: Event): void {
@@ -211,6 +289,116 @@ export class ReportDetail implements OnInit, OnDestroy {
     );
   }
 
+  /* --- Funciones de Comentarios --- */
+  protected loadComments(): void {
+    const item = this.report();
+    if (!item) return;
+
+    this.api.getComments(item.id).subscribe({
+      next: (items) => this.comments.set(items),
+      error: () => this.comments.set([]),
+    });
+  }
+
+  protected onNewCommentInput(event: Event): void {
+    this.newCommentText.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  protected onEditCommentInput(event: Event): void {
+    this.editingContent.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  protected addComment(): void {
+    const text = this.newCommentText().trim();
+    const item = this.report();
+
+    if (!text) {
+      this.toast.show('Escribe un comentario antes de publicar.');
+      return;
+    }
+    if (!item) return;
+
+    this.busy.set(true);
+    this.api.createComment(item.id, text).subscribe({
+      next: () => {
+        this.newCommentText.set('');
+        this.busy.set(false);
+        this.toast.show('Comentario publicado');
+        this.loadComments();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.busy.set(false);
+        this.toast.show(this.errorMessage(err));
+      },
+    });
+  }
+
+  protected startEditComment(c: ApiComment): void {
+    this.editingCommentId.set(c.id);
+    this.editingContent.set(c.content);
+  }
+
+  protected cancelEditComment(): void {
+    this.editingCommentId.set(null);
+    this.editingContent.set('');
+  }
+
+  protected saveEditComment(commentId: number): void {
+    const text = this.editingContent().trim();
+    if (!text) return;
+
+    this.busy.set(true);
+    this.api.updateComment(commentId, text).subscribe({
+      next: () => {
+        this.editingCommentId.set(null);
+        this.editingContent.set('');
+        this.busy.set(false);
+        this.toast.show('Comentario actualizado');
+        this.loadComments();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.busy.set(false);
+        this.toast.show(this.errorMessage(err));
+      },
+    });
+  }
+
+  protected deleteComment(commentId: number): void {
+    if (!confirm('¿Deseas eliminar este comentario?')) return;
+
+    this.busy.set(true);
+    this.api.deleteComment(commentId).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.toast.show('Comentario eliminado');
+        this.loadComments();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.busy.set(false);
+        this.toast.show(this.errorMessage(err));
+      },
+    });
+  }
+
+  /* Edición exclusiva para el autor del comentario */
+  protected canEditComment(c: ApiComment): boolean {
+    const user = this.auth.currentUser();
+    if (!user) return false;
+    return Number(c.user_id) === Number(user.id);
+  }
+
+  /* Eliminación para el autor O administradores de la plataforma */
+  protected canDeleteComment(c: ApiComment): boolean {
+    const user = this.auth.currentUser();
+    if (!user) return false;
+
+    const isOwner = Number(c.user_id) === Number(user.id);
+    const currentSlug = this.role();
+    const isAdmin = currentSlug === 'administrador' || user.roles?.includes('administrador');
+
+    return isOwner || isAdmin;
+  }
+
   private technicianMove(...from: ReportStatus[]): boolean {
     const item = this.report();
     return !!item && this.role() === 'tecnico' && this.isAssignee() && from.includes(item.status);
@@ -218,12 +406,12 @@ export class ReportDetail implements OnInit, OnDestroy {
 
   private isAssignee(): boolean {
     const item = this.report();
-    return !!item && item.assigneeId === this.auth.currentUser()?.id;
+    return !!item && Number(item.assigneeId) === Number(this.auth.currentUser()?.id);
   }
 
   private isAuthor(): boolean {
     const item = this.report();
-    return !!item && item.authorId === this.auth.currentUser()?.id;
+    return !!item && Number(item.authorId) === Number(this.auth.currentUser()?.id);
   }
 
   private isRole(...roles: RoleSlug[]): boolean {
@@ -242,6 +430,7 @@ export class ReportDetail implements OnInit, OnDestroy {
           this.priority.set(item.priority);
         }
         this.loading.set(false);
+        this.loadComments();
       },
       error: (err: HttpErrorResponse) => {
         this.notFound.set(err.status === 404);

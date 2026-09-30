@@ -247,3 +247,230 @@ time {
     font-size: 1.25rem;
   }
 }
+
+/* --- Estilos para la Sección de Comentarios --- */
+
+.comments-section {
+  margin-top: 1.5rem;
+  text-align: left; /* Cancela el text-align: center de .detail */
+}
+
+.section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0d1b2a;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+/* Caja del Textarea */
+.comment-box, .edit-box {
+  margin-bottom: 1.25rem;
+  text-align: left;
+}
+
+.comment-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #ffffff;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: #1e293b;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  resize: vertical;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.comment-textarea:focus {
+  border-color: #033954;
+  box-shadow: 0 0 0 3px rgba(3, 57, 84, 0.1);
+}
+
+.comment-box-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.6rem;
+}
+
+.edit-box-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+/* Botón Principal */
+.btn-primary-custom {
+  background-color: #033954;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 1.3rem;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-primary-custom:hover:not(:disabled) {
+  background-color: #00283c;
+}
+
+.btn-primary-custom:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary-custom {
+  background-color: #e2e8f0;
+  color: #334155;
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-secondary-custom:hover:not(:disabled) {
+  background-color: #cbd5e1;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+}
+
+/* Tarjetas de Comentarios */
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  text-align: left;
+}
+
+.comment-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0.9rem 1.15rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.2s ease;
+  text-align: left;
+}
+
+.comment-card:hover {
+  border-color: #cbd5e1;
+}
+
+/* Encabezado del Comentario */
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem; /* Asegura que el nombre esté pegado a la inicial */
+  text-align: left;
+}
+
+/* Avatar Circular de Usuario */
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Alineación forzada a la izquierda */
+  text-align: left;
+}
+
+.user-name {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.92rem;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.comment-date {
+  font-size: 0.76rem;
+  color: #64748b;
+  text-align: left;
+}
+
+/* Texto del comentario */
+.comment-body {
+  font-size: 0.92rem;
+  color: #334155;
+  margin: 0;
+  line-height: 1.45;
+  text-align: left;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Botones con ícono (Lápiz y Cesta) */
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.icon-btn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.35rem;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+  color: #033954;
+}
+
+.icon-btn.delete-btn:hover:not(:disabled) {
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.no-comments {
+  color: #64748b;
+  font-style: italic;
+  font-size: 0.88rem;
+  text-align: left;
+}
