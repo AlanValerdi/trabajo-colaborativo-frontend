@@ -1,168 +1,975 @@
 @if (loading()) {
-  <p class="loading">Cargando reporte…</p>
+
+  <p class="loading">
+    Cargando reporte…
+  </p>
+
 } @else if (report(); as view) {
+
   <article class="detail">
-    <p class="folio-line"><code>{{ view.folio }}</code></p>
-    <h1>{{ view.title }}</h1>
-    <p class="meta">{{ view.author.name }} · {{ view.campusLabel }}</p>
+
+    <!-- =====================================================
+         INFORMACIÓN GENERAL DEL REPORTE
+         ===================================================== -->
+
+    <p class="folio-line">
+      <code>{{ view.folio }}</code>
+    </p>
+
+    <h1>
+      {{ view.title }}
+    </h1>
+
+    <p class="meta">
+      {{ view.author.name }} · {{ view.campusLabel }}
+    </p>
+
 
     <div class="stats">
+
       <div>
-        <strong>{{ cleanText(view.facultyLabel) }}</strong>
-        <span>Facultad</span>
-      </div>
-      <div>
+
         <strong>
-          @for (line of locationLines(view.spaceLabel); track $index) {
-            <span class="loc-line">{{ line }}</span>
-          }
+          {{ cleanText(view.facultyLabel) }}
         </strong>
-        <span>Ubicación</span>
+
+        <span>
+          Facultad
+        </span>
+
       </div>
+
+
+      <div>
+
+        <strong>
+
+          @for (
+            line of locationLines(view.spaceLabel);
+            track line
+          ) {
+
+            <span class="loc-line">
+              {{ line }}
+            </span>
+
+          }
+
+        </strong>
+
+        <span>
+          Ubicación
+        </span>
+
+      </div>
+
     </div>
+
 
     <hr class="rule" />
 
-    <app-report-status-timeline [status]="view.status" />
+
+    <!-- =====================================================
+         ESTADO DEL REPORTE
+         ===================================================== -->
+
+    <app-report-status-timeline
+      [status]="view.status"
+    />
+
+
+    <hr class="rule" />
+
+
+    <!-- =====================================================
+         IMAGEN
+         ===================================================== -->
 
     @if (view.imageUrl) {
+
+      <img
+        [src]="view.imageUrl"
+        [alt]="view.title"
+      />
+
       <hr class="rule" />
-      <img [src]="view.imageUrl" [alt]="view.title" />
+
     }
 
-    <p class="description">{{ view.description }}</p>
 
-    @if (view.category || view.priority || view.assigneeId) {
+    <!-- =====================================================
+         DESCRIPCIÓN
+         ===================================================== -->
+
+    <p class="description">
+      {{ view.description }}
+    </p>
+
+
+    <!-- =====================================================
+         DATOS TÉCNICOS / CLASIFICACIÓN
+         ===================================================== -->
+
+    @if (
+      view.category ||
+      view.priority ||
+      view.assigneeId
+    ) {
+
       <hr class="rule" />
+
+
       <section class="facts">
+
         @if (view.category) {
-          <p><span>Categoría</span> {{ view.category }}</p>
+
+          <p>
+
+            <span>
+              Categoría
+            </span>
+
+            {{ view.category }}
+
+          </p>
+
         }
+
+
         @if (view.priority) {
-          <p><span>Prioridad</span> {{ view.priority }}</p>
+
+          <p>
+
+            <span>
+              Prioridad
+            </span>
+
+            {{ view.priority }}
+
+          </p>
+
         }
+
+
         @if (view.assigneeId) {
-          <p><span>Responsable</span> {{ personName(view.assigneeId) }}</p>
+
+          <p>
+
+            <span>
+              Responsable
+            </span>
+
+            {{ personName(view.assigneeId) }}
+
+          </p>
+
         }
+
       </section>
+
     }
 
-    @if (showActions()) {
-      <hr class="rule" />
-      <section class="workflow">
-        <h2>Gestión</h2>
 
-        @if (canCategorize()) {
-          <form class="stack" (submit)="$event.preventDefault(); categorize()">
-            <label>
-              Categoría
-              <select [value]="category()" (change)="onCategory($event)" [disabled]="busy()">
-                <option value="">Selecciona</option>
-                @for (item of specialties(); track item.id) {
-                  <option [value]="item.category">{{ item.name }}</option>
-                }
-              </select>
-            </label>
-            <label>
-              Prioridad
-              <select [value]="priority()" (change)="onPriority($event)" [disabled]="busy()">
-                <option value="">Selecciona</option>
-                <option value="baja">Baja</option>
-                <option value="media">Media</option>
-                <option value="alta">Alta</option>
-              </select>
-            </label>
-            <button type="submit" [disabled]="busy()">Categorizar</button>
-          </form>
-        }
+    <!-- =====================================================
+         HU-11 — DIAGNÓSTICO TÉCNICO
+         ===================================================== -->
 
-        @if (canAssign()) {
-          <form class="stack" (submit)="$event.preventDefault(); assign()">
-            <label>
-              Técnico
-              <select [value]="assigneeId() ?? ''" (change)="onAssignee($event)" [disabled]="busy()">
-                <option value="">Selecciona</option>
-                @for (tech of technicians(); track tech.id) {
-                  <option [value]="tech.id">{{ tech.name }}</option>
-                }
-              </select>
-            </label>
-            <button type="submit" [disabled]="busy()">Asignar</button>
-          </form>
-        }
+    <hr class="rule" />
 
-        <div class="actions">
-          @if (canValidate()) {
-            <button type="button" (click)="move('validada')" [disabled]="busy()">Validar</button>
-          }
-          @if (canStart()) {
-            <button type="button" (click)="move('en_progreso')" [disabled]="busy()">En progreso</button>
-          }
-          @if (canSendValidation()) {
-            <button type="button" (click)="move('en_validacion')" [disabled]="busy()">En validación</button>
-          }
-          @if (canResolve()) {
-            <button type="button" (click)="move('resuelta')" [disabled]="busy()">Resuelta</button>
-          }
-          @if (canClose()) {
-            <button type="button" (click)="move('cerrada')" [disabled]="busy()">Cerrar</button>
-          }
-          @if (canUnblock() && resumeStatus(); as resume) {
-            <button type="button" (click)="move(resume)" [disabled]="busy()">
-              Volver a {{ statusLabel(resume) }}
-            </button>
-          }
+
+    <section class="technical-section">
+
+      <div class="technical-heading">
+
+        <div>
+
+          <p class="technical-kicker">
+            HU-11
+          </p>
+
+          <h2>
+            Diagnóstico técnico
+          </h2>
+
         </div>
 
-        @if (canBlock() || canReopen()) {
-          <label class="stack">
-            Comentario
-            <textarea rows="3" [value]="comment()" (input)="onComment($event)" [disabled]="busy()"></textarea>
-          </label>
-          <div class="actions">
-            @if (canBlock()) {
-              <button type="button" (click)="move('bloqueada', true)" [disabled]="busy()">Bloquear</button>
-            }
-            @if (canReopen()) {
-              <button type="button" (click)="move('reabierta', true)" [disabled]="busy()">Reabrir</button>
-            }
+      </div>
+
+
+      @if (diagnosisLoading()) {
+
+        <p class="technical-empty">
+          Cargando diagnóstico…
+        </p>
+
+      } @else if (diagnosis(); as item) {
+
+        <div class="diagnosis-card">
+
+          <div class="diagnosis-block">
+
+            <span class="technical-label">
+              Evaluación del problema
+            </span>
+
+            <p>
+              {{ item.evaluation }}
+            </p>
+
           </div>
+
+
+          <div class="diagnosis-block">
+
+            <span class="technical-label">
+              Causa raíz
+            </span>
+
+            <p>
+              {{ item.rootCause }}
+            </p>
+
+          </div>
+
+
+          <div class="technical-meta">
+
+            <span>
+              Registrado por
+              <strong>
+                {{ item.author.name }}
+              </strong>
+            </span>
+
+            <span>
+              {{ item.createdAt | date: 'short' }}
+            </span>
+
+          </div>
+
+        </div>
+
+      } @else {
+
+        <p class="technical-empty">
+          Aún no se ha registrado un diagnóstico técnico.
+        </p>
+
+
+        @if (canWriteTechnical()) {
+
+          <form
+            class="technical-form"
+            [formGroup]="diagnosisForm"
+            (ngSubmit)="submitDiagnosis()"
+          >
+
+            <label>
+
+              Evaluación del problema
+
+              <textarea
+                rows="4"
+                formControlName="evaluation"
+                placeholder="Describe la evaluación realizada al problema"
+              ></textarea>
+
+            </label>
+
+
+            @if (
+              diagnosisForm.controls.evaluation.touched &&
+              diagnosisForm.controls.evaluation.invalid
+            ) {
+
+              <small class="field-error">
+                La evaluación es obligatoria.
+              </small>
+
+            }
+
+
+            <label>
+
+              Causa raíz
+
+              <textarea
+                rows="4"
+                formControlName="rootCause"
+                placeholder="Describe la causa concreta que originó la incidencia"
+              ></textarea>
+
+            </label>
+
+
+            @if (
+              diagnosisForm.controls.rootCause.touched &&
+              diagnosisForm.controls.rootCause.invalid
+            ) {
+
+              <small class="field-error">
+                La causa raíz es obligatoria.
+              </small>
+
+            }
+
+
+            <div class="technical-actions">
+
+              <button
+                class="primary"
+                type="submit"
+                [disabled]="
+                  diagnosisSaving() ||
+                  diagnosisForm.invalid
+                "
+              >
+
+                @if (diagnosisSaving()) {
+
+                  Guardando…
+
+                } @else {
+
+                  Registrar diagnóstico
+
+                }
+
+              </button>
+
+            </div>
+
+          </form>
+
         }
+
+      }
+
+    </section>
+
+
+    <!-- =====================================================
+         HU-12 — BITÁCORA DE ACTIVIDADES
+         ===================================================== -->
+
+    <hr class="rule" />
+
+
+    <section class="technical-section">
+
+      <div class="technical-heading">
+
+        <div>
+
+          <p class="technical-kicker">
+            HU-12
+          </p>
+
+          <h2>
+            Bitácora de actividades
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      @if (workLogsLoading()) {
+
+        <p class="technical-empty">
+          Cargando actividades…
+        </p>
+
+      } @else {
+
+        @if (workLogs().length) {
+
+          <div class="work-log-list">
+
+            @for (
+              row of workLogs();
+              track row.id
+            ) {
+
+              <article class="work-log-card">
+
+                <div class="work-log-top">
+
+                  <strong>
+                    {{ row.tasks }}
+                  </strong>
+
+                  <span class="time-chip">
+                    {{ row.timeMinutes }} min
+                  </span>
+
+                </div>
+
+
+                <div class="work-log-materials">
+
+                  <span class="technical-label">
+                    Materiales o refacciones
+                  </span>
+
+                  <p>
+                    {{ row.materials }}
+                  </p>
+
+                </div>
+
+
+                <div class="technical-meta">
+
+                  <span>
+                    {{ row.author.name }}
+                  </span>
+
+                  <span>
+                    {{ row.createdAt | date: 'short' }}
+                  </span>
+
+                </div>
+
+              </article>
+
+            }
+
+          </div>
+
+        } @else {
+
+          <p class="technical-empty">
+            Todavía no hay actividades registradas.
+          </p>
+
+        }
+
+
+        @if (canWriteTechnical()) {
+
+          <form
+            class="technical-form work-log-form"
+            [formGroup]="workLogForm"
+            (ngSubmit)="submitWorkLog()"
+          >
+
+            <h3>
+              Registrar nueva actividad
+            </h3>
+
+
+            <label>
+
+              Actividad realizada
+
+              <textarea
+                rows="3"
+                formControlName="tasks"
+                placeholder="Describe concretamente el trabajo realizado"
+              ></textarea>
+
+            </label>
+
+
+            @if (
+              workLogForm.controls.tasks.touched &&
+              workLogForm.controls.tasks.invalid
+            ) {
+
+              <small class="field-error">
+                La actividad realizada es obligatoria.
+              </small>
+
+            }
+
+
+            <label>
+
+              Materiales o refacciones utilizadas
+
+              <textarea
+                rows="3"
+                formControlName="materials"
+                placeholder="Indica los materiales utilizados. Si no se utilizaron, escribe Ninguno."
+              ></textarea>
+
+            </label>
+
+
+            @if (
+              workLogForm.controls.materials.touched &&
+              workLogForm.controls.materials.invalid
+            ) {
+
+              <small class="field-error">
+                Indica los materiales utilizados o escribe Ninguno.
+              </small>
+
+            }
+
+
+            <label>
+
+              Tiempo empleado en minutos
+
+              <input
+                type="number"
+                min="1"
+                formControlName="timeMinutes"
+              />
+
+            </label>
+
+
+            @if (
+              workLogForm.controls.timeMinutes.touched &&
+              workLogForm.controls.timeMinutes.invalid
+            ) {
+
+              <small class="field-error">
+                El tiempo debe ser de al menos 1 minuto.
+              </small>
+
+            }
+
+
+            <div class="technical-actions">
+
+              <button
+                class="primary"
+                type="submit"
+                [disabled]="
+                  workLogSaving() ||
+                  workLogForm.invalid
+                "
+              >
+
+                @if (workLogSaving()) {
+
+                  Guardando…
+
+                } @else {
+
+                  Registrar actividad
+
+                }
+
+              </button>
+
+            </div>
+
+          </form>
+
+        }
+
+      }
+
+    </section>
+
+
+    <!-- =====================================================
+         WORKFLOW EXISTENTE DE LOS COMPAÑEROS
+         ===================================================== -->
+
+    @if (showActions()) {
+
+      <hr class="rule" />
+
+
+      <section class="workflow">
+
+        <h2>
+          Gestión
+        </h2>
+
+
+        @if (canCategorize()) {
+
+          <form
+            class="stack"
+            (submit)="
+              $event.preventDefault();
+              categorize()
+            "
+          >
+
+            <label>
+
+              Categoría
+
+              <select
+                [value]="category()"
+                (change)="onCategory($event)"
+                [disabled]="busy()"
+              >
+
+                <option value="">
+                  Selecciona
+                </option>
+
+
+                @for (
+                  item of specialties();
+                  track item.id
+                ) {
+
+                  <option
+                    [value]="item.category"
+                  >
+                    {{ item.name }}
+                  </option>
+
+                }
+
+              </select>
+
+            </label>
+
+
+            <label>
+
+              Prioridad
+
+              <select
+                [value]="priority()"
+                (change)="onPriority($event)"
+                [disabled]="busy()"
+              >
+
+                <option value="">
+                  Selecciona
+                </option>
+
+                <option value="baja">
+                  Baja
+                </option>
+
+                <option value="media">
+                  Media
+                </option>
+
+                <option value="alta">
+                  Alta
+                </option>
+
+              </select>
+
+            </label>
+
+
+            <button
+              type="submit"
+              [disabled]="busy()"
+            >
+              Categorizar
+            </button>
+
+          </form>
+
+        }
+
+
+        @if (canAssign()) {
+
+          <form
+            class="stack"
+            (submit)="
+              $event.preventDefault();
+              assign()
+            "
+          >
+
+            <label>
+
+              Técnico
+
+              <select
+                [value]="assigneeId() ?? ''"
+                (change)="onAssignee($event)"
+                [disabled]="busy()"
+              >
+
+                <option value="">
+                  Selecciona
+                </option>
+
+
+                @for (
+                  tech of technicians();
+                  track tech.id
+                ) {
+
+                  <option
+                    [value]="tech.id"
+                  >
+                    {{ tech.name }}
+                  </option>
+
+                }
+
+              </select>
+
+            </label>
+
+
+            <button
+              type="submit"
+              [disabled]="busy()"
+            >
+              Asignar
+            </button>
+
+          </form>
+
+        }
+
+
+        <div class="actions">
+
+          @if (canValidate()) {
+
+            <button
+              type="button"
+              (click)="move('validada')"
+              [disabled]="busy()"
+            >
+              Validar
+            </button>
+
+          }
+
+
+          @if (canStart()) {
+
+            <button
+              type="button"
+              (click)="move('en_progreso')"
+              [disabled]="busy()"
+            >
+              En progreso
+            </button>
+
+          }
+
+
+          @if (canSendValidation()) {
+
+            <button
+              type="button"
+              (click)="move('en_validacion')"
+              [disabled]="busy()"
+            >
+              En validación
+            </button>
+
+          }
+
+
+          @if (canResolve()) {
+
+            <button
+              type="button"
+              (click)="move('resuelta')"
+              [disabled]="busy()"
+            >
+              Resuelta
+            </button>
+
+          }
+
+
+          @if (canClose()) {
+
+            <button
+              type="button"
+              (click)="move('cerrada')"
+              [disabled]="busy()"
+            >
+              Cerrar
+            </button>
+
+          }
+
+
+          @if (
+            canUnblock() &&
+            resumeStatus();
+            as resume
+          ) {
+
+            <button
+              type="button"
+              (click)="move(resume)"
+              [disabled]="busy()"
+            >
+              Volver a {{ statusLabel(resume) }}
+            </button>
+
+          }
+
+        </div>
+
+
+        @if (
+          canBlock() ||
+          canReopen()
+        ) {
+
+          <label class="stack">
+
+            Comentario
+
+            <textarea
+              rows="3"
+              [value]="comment()"
+              (input)="onComment($event)"
+              [disabled]="busy()"
+            ></textarea>
+
+          </label>
+
+
+          <div class="actions">
+
+            @if (canBlock()) {
+
+              <button
+                type="button"
+                (click)="move('bloqueada', true)"
+                [disabled]="busy()"
+              >
+                Bloquear
+              </button>
+
+            }
+
+
+            @if (canReopen()) {
+
+              <button
+                type="button"
+                (click)="move('reabierta', true)"
+                [disabled]="busy()"
+              >
+                Reabrir
+              </button>
+
+            }
+
+          </div>
+
+        }
+
       </section>
+
     }
 
-    <!-- Historial de Asignaciones y Estados -->
+    <!-- =====================================================
+         HISTORIAL DE ASIGNACIONES
+         ===================================================== -->
     @if (assignments().length) {
+
       <hr class="rule" />
+
+
       <section class="history">
-        <h2>Asignaciones</h2>
+
+        <h2>
+          Asignaciones
+        </h2>
+
+
         <ul>
-          @for (row of assignments(); track row.id) {
+
+          @for (
+            row of assignments();
+            track row.id
+          ) {
+
             <li>
-              <strong>{{ personName(row.assigneeId) }}</strong>
-              <span>por {{ personName(row.assignedById) }} · {{ formatDate(row.assignedAt) | date: 'short' }}</span>
+
+              <strong>
+                {{ personName(row.assigneeId) }}
+              </strong>
+
+              <span>
+
+                por
+                {{ personName(row.assignedById) }}
+                ·
+                {{ formatDate(row.assignedAt) | date: 'short' }}
+
+              </span>
+
             </li>
+
           }
+
         </ul>
+
       </section>
+
     }
+
+
+    <!-- =====================================================
+         HISTORIAL DE ESTADOS
+         ===================================================== -->
 
     @if (events().length) {
+
       <hr class="rule" />
+
+
       <section class="history">
-        <h2>Estados</h2>
+
+        <h2>
+          Estados
+        </h2>
+
+
         <ul>
-          @for (row of events(); track row.id) {
+
+          @for (
+            row of events();
+            track row.id
+          ) {
+
             <li>
-              <strong>{{ statusLabel(row.fromStatus) }} → {{ statusLabel(row.toStatus) }}</strong>
-              <span>{{ personName(row.actorId) }} · {{ formatDate(row.createdAt) | date: 'short' }}</span>
+
+              <strong>
+
+                {{ statusLabel(row.fromStatus) }}
+                →
+                {{ statusLabel(row.toStatus) }}
+
+              </strong>
+
+
+              <span>
+
+                {{ personName(row.actorId) }}
+                ·
+                {{ formatDate(row.createdAt) | date: 'short' }}
+
+              </span>
               @if (row.comment) {
-                <em>{{ row.comment }}</em>
+
+                <em>
+                  {{ row.comment }}
+                </em>
+
               }
+
             </li>
+
           }
+
         </ul>
+
       </section>
+
     }
 
     <!-- SECCIÓN DE COMENTARIOS -->
@@ -256,9 +1063,19 @@
     </section>
 
   </article>
+
 } @else {
+
   <div class="empty">
-    <h1>Reporte no encontrado</h1>
-    <a routerLink="/inicio">Volver a Inicio</a>
+
+    <h1>
+      Reporte no encontrado
+    </h1>
+
+    <a routerLink="/inicio">
+      Volver a Inicio
+    </a>
+
   </div>
+
 }

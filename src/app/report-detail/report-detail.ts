@@ -1,51 +1,120 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  inject,
+  OnDestroy,
+  OnInit,
+  signal,
+} from '@angular/core';
+import {
+  FormBuilder,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+
 import { AuthService } from '../auth/auth.service';
-import { IncidentCategory, Priority, ReportStatus, RoleSlug } from '../data/models';
+import {
+  IncidentCategory,
+  Priority,
+  ReportStatus,
+  RoleSlug,
+} from '../data/models';
 import {
   ApiAssignment,
   ApiComment,
+  ApiDiagnosis,
   ApiReport,
   ApiSpecialty,
   ApiStatusEvent,
+  ApiWorkLog,
   ReportsApiService,
 } from '../data/reports-api.service';
 import { statusLabel } from '../data/report-status';
-import { ApiUser, UsersApiService } from '../data/users-api.service';
+import {
+  ApiUser,
+  UsersApiService,
+} from '../data/users-api.service';
 import { ReportStatusTimeline } from '../report-status-timeline/report-status-timeline';
 import { BreadcrumbService } from '../session/breadcrumb.service';
 import { RoleSessionService } from '../session/role-session.service';
 import { ToastService } from '../ui/toast/toast.service';
 
-const CATEGORIZABLE: ReportStatus[] = ['reportada', 'validada', 'reabierta'];
-const ASSIGNABLE: ReportStatus[] = ['validada', 'asignada', 'reabierta', 'bloqueada'];
-const REOPEN_FROM: ReportStatus[] = ['en_validacion', 'resuelta', 'cerrada'];
+
+const CATEGORIZABLE: ReportStatus[] = [
+  'reportada',
+  'validada',
+  'reabierta',
+];
+
+const ASSIGNABLE: ReportStatus[] = [
+  'validada',
+  'asignada',
+  'reabierta',
+  'bloqueada',
+];
+
+const REOPEN_FROM: ReportStatus[] = [
+  'en_validacion',
+  'resuelta',
+  'cerrada',
+];
+
 
 @Component({
   selector: 'app-report-detail',
-  imports: [RouterLink, ReportStatusTimeline, DatePipe],
+
+  imports: [
+    RouterLink,
+    ReportStatusTimeline,
+    DatePipe,
+    ReactiveFormsModule,
+  ],
+
   templateUrl: './report-detail.html',
   styleUrl: './report-detail.css',
 })
 export class ReportDetail implements OnInit, OnDestroy {
+
   private readonly route = inject(ActivatedRoute);
+
   private readonly api = inject(ReportsApiService);
+
   private readonly usersApi = inject(UsersApiService);
+
   private readonly auth = inject(AuthService);
+
   private readonly crumbs = inject(BreadcrumbService);
+
   private readonly toast = inject(ToastService);
+
+  private readonly fb = inject(FormBuilder);
+
   protected readonly session = inject(RoleSessionService);
 
+
+  /* =======================================================
+     DATOS GENERALES DEL REPORTE
+     ======================================================= */
+
   protected readonly report = signal<ApiReport | null>(null);
+
   protected readonly loading = signal(true);
+
   protected readonly notFound = signal(false);
+
   protected readonly busy = signal(false);
+
   protected readonly specialties = signal<ApiSpecialty[]>([]);
+
   protected readonly technicians = signal<ApiUser[]>([]);
+
   protected readonly assignments = signal<ApiAssignment[]>([]);
+
   protected readonly events = signal<ApiStatusEvent[]>([]);
+
   protected readonly names = signal<Record<number, string>>({});
 
   /* Signals para Comentarios */
@@ -54,71 +123,271 @@ export class ReportDetail implements OnInit, OnDestroy {
   protected readonly editingCommentId = signal<number | null>(null);
   protected readonly editingContent = signal('');
 
-  protected readonly category = signal<IncidentCategory | ''>('');
-  protected readonly priority = signal<Priority | ''>('');
-  protected readonly assigneeId = signal<number | null>(null);
+  protected readonly category =
+    signal<IncidentCategory | ''>('');
+
+  protected readonly priority =
+    signal<Priority | ''>('');
+
+  protected readonly assigneeId =
+    signal<number | null>(null);
   protected readonly comment = signal('');
+
 
   protected readonly statusLabel = statusLabel;
 
+
   private folio = '';
 
-  protected readonly role = computed<RoleSlug>(() => this.session.currentSlug());
+
+  protected readonly role =
+    computed<RoleSlug>(() => this.session.currentSlug());
+
+
+  /* =======================================================
+     HU-11 — DIAGNÓSTICO
+     ======================================================= */
+
+  protected readonly diagnosis =
+    signal<ApiDiagnosis | null>(null);
+
+  protected readonly diagnosisLoading =
+    signal(true);
+
+  protected readonly diagnosisSaving =
+    signal(false);
+
+
+  protected readonly diagnosisForm =
+    this.fb.nonNullable.group({
+
+      evaluation: [
+        '',
+        [
+          Validators.required,
+        ],
+      ],
+
+      rootCause: [
+        '',
+        [
+          Validators.required,
+        ],
+      ],
+
+    });
+
+
+  /* =======================================================
+     HU-12 — BITÁCORA DE ACTIVIDADES
+     ======================================================= */
+
+  protected readonly workLogs =
+    signal<ApiWorkLog[]>([]);
+
+  protected readonly workLogsLoading =
+    signal(true);
+
+  protected readonly workLogSaving =
+    signal(false);
+
+
+  protected readonly workLogForm =
+    this.fb.nonNullable.group({
+
+      tasks: [
+        '',
+        [
+          Validators.required,
+        ],
+      ],
+
+      materials: [
+        '',
+        [
+          Validators.required,
+        ],
+      ],
+
+      timeMinutes: [
+        1,
+        [
+          Validators.required,
+          Validators.min(1),
+        ],
+      ],
+
+    });
+
+
+  /* =======================================================
+     PERMISOS DEL WORKFLOW EXISTENTE
+     ======================================================= */
 
   protected readonly canCategorize = computed(() => {
+
     const item = this.report();
-    return !!item && this.isRole('responsable', 'administrador') && CATEGORIZABLE.includes(item.status);
+
+    return (
+      !!item &&
+      this.isRole(
+        'responsable',
+        'administrador',
+      ) &&
+      CATEGORIZABLE.includes(item.status)
+    );
+
   });
 
+
   protected readonly canAssign = computed(() => {
+
     const item = this.report();
+
     return (
       !!item &&
       item.category != null &&
-      this.isRole('responsable', 'coordinador', 'administrador') &&
+      this.isRole(
+        'responsable',
+        'coordinador',
+        'administrador',
+      ) &&
       ASSIGNABLE.includes(item.status)
     );
+
   });
+
 
   protected readonly canValidate = computed(() => {
+
     const item = this.report();
-    return !!item && item.status === 'reportada' && this.isRole('responsable', 'coordinador', 'administrador');
+
+    return (
+      !!item &&
+      item.status === 'reportada' &&
+      this.isRole(
+        'responsable',
+        'coordinador',
+        'administrador',
+      )
+    );
+
   });
 
-  protected readonly canStart = computed(() => this.technicianMove('asignada', 'reabierta'));
-  protected readonly canSendValidation = computed(() => this.technicianMove('en_progreso'));
-  protected readonly canResolve = computed(() => this.technicianMove('en_validacion'));
+
+  protected readonly canStart =
+    computed(() =>
+      this.technicianMove(
+        'asignada',
+        'reabierta',
+      )
+    );
+
+
+  protected readonly canSendValidation =
+    computed(() =>
+      this.technicianMove(
+        'en_progreso',
+      )
+    );
+
+
+  protected readonly canResolve =
+    computed(() =>
+      this.technicianMove(
+        'en_validacion',
+      )
+    );
+
 
   protected readonly canBlock = computed(() => {
+
     const item = this.report();
-    if (!item || (item.status !== 'asignada' && item.status !== 'en_progreso')) {
+
+    if (
+      !item ||
+      (
+        item.status !== 'asignada' &&
+        item.status !== 'en_progreso'
+      )
+    ) {
       return false;
     }
-    return this.isAssignee() || this.role() === 'responsable';
+
+    return (
+      this.isAssignee() ||
+      this.role() === 'responsable'
+    );
+
   });
+
 
   protected readonly canUnblock = computed(() => {
+
     const item = this.report();
-    return !!item && item.status === 'bloqueada' && !!this.resumeStatus() && (this.isAssignee() || this.role() === 'responsable');
+
+    return (
+      !!item &&
+      item.status === 'bloqueada' &&
+      !!this.resumeStatus() &&
+      (
+        this.isAssignee() ||
+        this.role() === 'responsable'
+      )
+    );
+
   });
+
 
   protected readonly canClose = computed(() => {
+
     const item = this.report();
-    return !!item && item.status === 'resuelta' && (this.isAuthor() || this.role() === 'validador');
+
+    return (
+      !!item &&
+      item.status === 'resuelta' &&
+      (
+        this.isAuthor() ||
+        this.role() === 'validador'
+      )
+    );
+
   });
+
 
   protected readonly canReopen = computed(() => {
+
     const item = this.report();
-    return !!item && REOPEN_FROM.includes(item.status) && (this.isAuthor() || this.role() === 'validador');
+
+    return (
+      !!item &&
+      REOPEN_FROM.includes(item.status) &&
+      (
+        this.isAuthor() ||
+        this.role() === 'validador'
+      )
+    );
+
   });
 
-  protected readonly resumeStatus = computed<ReportStatus | null>(() => {
-    const blocked = this.events().find((event) => event.toStatus === 'bloqueada');
-    return blocked?.fromStatus ?? null;
-  });
 
-  protected readonly showActions = computed(
-    () =>
+  protected readonly resumeStatus =
+    computed<ReportStatus | null>(() => {
+
+      const blocked =
+        this.events().find(
+          (event) =>
+            event.toStatus === 'bloqueada',
+        );
+
+      return blocked?.fromStatus ?? null;
+
+    });
+
+
+  protected readonly showActions =
+    computed(() =>
+
       this.canCategorize() ||
       this.canAssign() ||
       this.canValidate() ||
@@ -128,20 +397,52 @@ export class ReportDetail implements OnInit, OnDestroy {
       this.canBlock() ||
       this.canUnblock() ||
       this.canClose() ||
-      this.canReopen(),
-  );
+      this.canReopen()
+
+    );
+
+
+  /* =======================================================
+     PERMISO TÉCNICO HU-11 / HU-12
+     ======================================================= */
+
+  protected readonly canWriteTechnical =
+    computed(() => {
+
+      const item = this.report();
+
+      return (
+        !!item &&
+        this.role() === 'tecnico' &&
+        this.isAssignee()
+      );
+
+    });
+
+
+  /* =======================================================
+     INICIALIZACIÓN
+     ======================================================= */
 
   ngOnInit(): void {
-    this.folio = this.route.snapshot.paramMap.get('id') ?? '';
+
+    this.folio =
+      this.route.snapshot.paramMap.get('id') ?? '';
+
+
     this.loadReport();
+
     this.loadHistory();
+
+    this.loadDiagnosis();
+
+    this.loadWorkLogs();
 
     this.api.listSpecialties().subscribe({
       next: (items) => this.specialties.set(items),
       error: () => this.specialties.set([]),
     });
 
-    // Registrar al usuario logueado en el almacenamiento local de nombres
     const currentUser = this.auth.currentUser();
     if (currentUser && currentUser.name) {
       try {
@@ -151,7 +452,6 @@ export class ReportDetail implements OnInit, OnDestroy {
       } catch {}
     }
 
-    // Cargar lista de usuarios (si el usuario tiene permisos) y mezclar con la memoria local
     this.usersApi.list().subscribe({
       next: (users) => {
         let known: Record<number, string> = {};
@@ -183,9 +483,16 @@ export class ReportDetail implements OnInit, OnDestroy {
     });
   }
 
+
   ngOnDestroy(): void {
+
     this.crumbs.reportTitle.set(null);
+
   }
+
+  /* =======================================================
+     FUNCIONES DE APOYO
+     ======================================================= */
 
   protected cleanText(text?: string | null): string {
     if (!text) return '—';
@@ -203,23 +510,19 @@ export class ReportDetail implements OnInit, OnDestroy {
     return label.split(' - ').map((part) => this.cleanText(part.trim()));
   }
 
-  /* Resolución de nombres combinando memoria local y entidades */
   protected personName(id: number): string {
     const targetId = Number(id);
 
-    // 1. Consultar en la lista general / localStorage
     const known = this.names();
     if (known[targetId]) {
       return known[targetId];
     }
 
-    // 2. Coincidencia con autor del reporte
     const reportItem = this.report();
     if (reportItem && Number(reportItem.authorId) === targetId && reportItem.author?.name) {
       return reportItem.author.name;
     }
 
-    // 3. Coincidencia con usuario logueado en la sesión activa
     const currentUser = this.auth.currentUser();
     if (currentUser && Number(currentUser.id) === targetId && currentUser.name) {
       return currentUser.name;
@@ -234,59 +537,158 @@ export class ReportDetail implements OnInit, OnDestroy {
     return name.charAt(0).toUpperCase();
   }
 
-  /* Formateador seguro de fecha ISO */
   protected formatDate(dateStr: string): string {
     if (!dateStr) return '';
     const formattedStr = dateStr.includes('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`;
     return formattedStr;
   }
 
-  protected onCategory(event: Event): void {
-    this.category.set((event.target as HTMLSelectElement).value as IncidentCategory | '');
+
+  protected onCategory(
+    event: Event,
+  ): void {
+
+    this.category.set(
+
+      (
+        event.target as HTMLSelectElement
+      ).value as IncidentCategory | '',
+
+    );
+
   }
 
-  protected onPriority(event: Event): void {
-    this.priority.set((event.target as HTMLSelectElement).value as Priority | '');
+
+  protected onPriority(
+    event: Event,
+  ): void {
+
+    this.priority.set(
+
+      (
+        event.target as HTMLSelectElement
+      ).value as Priority | '',
+
+    );
+
   }
 
-  protected onAssignee(event: Event): void {
-    const value = Number((event.target as HTMLSelectElement).value);
-    this.assigneeId.set(Number.isFinite(value) && value > 0 ? value : null);
+
+  protected onAssignee(
+    event: Event,
+  ): void {
+
+    const value =
+      Number(
+        (
+          event.target as HTMLSelectElement
+        ).value,
+      );
+
+
+    this.assigneeId.set(
+
+      Number.isFinite(value) &&
+      value > 0
+
+        ? value
+
+        : null,
+
+    );
+
   }
 
-  protected onComment(event: Event): void {
-    this.comment.set((event.target as HTMLTextAreaElement).value);
+
+  protected onComment(
+    event: Event,
+  ): void {
+
+    this.comment.set(
+
+      (
+        event.target as HTMLTextAreaElement
+      ).value,
+
+    );
+
   }
+
+
+  /* =======================================================
+     WORKFLOW EXISTENTE
+     ======================================================= */
 
   protected categorize(): void {
-    const category = this.category();
-    const priority = this.priority();
-    if (!category || !priority) {
-      this.toast.show('Elige categoría y prioridad.');
+
+    const category =
+      this.category();
+
+    const priority =
+      this.priority();
+
+
+    if (
+      !category ||
+      !priority
+    ) {
+
+      this.toast.show(
+        'Elige categoría y prioridad.',
+      );
+
       return;
+
     }
-    this.run(() => this.api.categorize(this.folio, { category, priority }), 'Incidencia categorizada');
+
+
+    this.run(
+
+      () =>
+        this.api.categorize(
+          this.folio,
+          {
+            category,
+            priority,
+          },
+        ),
+
+      'Incidencia categorizada',
+
+    );
+
   }
+
 
   protected assign(): void {
-    const assigneeId = this.assigneeId();
-    if (!assigneeId) {
-      this.toast.show('Elige un técnico.');
-      return;
-    }
-    this.run(() => this.api.assign(this.folio, assigneeId), 'Responsable asignado');
-  }
 
-  protected move(status: ReportStatus, needsComment = false): void {
-    const comment = this.comment().trim();
-    if (needsComment && !comment) {
-      this.toast.show('Escribe un comentario para esta acción.');
+    const assigneeId =
+      this.assigneeId();
+
+
+    if (!assigneeId) {
+
+      this.toast.show(
+        'Elige un técnico.',
+      );
+
       return;
+
     }
+
+
     this.run(
-      () => this.api.changeStatus(this.folio, { status, comment: comment || null }),
-      'Estado actualizado',
+
+      () =>
+        this.api.assign(
+          this.folio,
+          assigneeId,
+        ),
+
+      'Responsable asignado',
+
     );
+
   }
 
   /* --- Funciones de Comentarios --- */
@@ -399,24 +801,272 @@ export class ReportDetail implements OnInit, OnDestroy {
     return isOwner || isAdmin;
   }
 
-  private technicianMove(...from: ReportStatus[]): boolean {
-    const item = this.report();
-    return !!item && this.role() === 'tecnico' && this.isAssignee() && from.includes(item.status);
+  protected move(
+    status: ReportStatus,
+    needsComment = false,
+  ): void {
+
+    const comment =
+      this.comment().trim();
+
+
+    if (
+      needsComment &&
+      !comment
+    ) {
+
+      this.toast.show(
+        'Escribe un comentario para esta acción.',
+      );
+
+      return;
+
+    }
+
+
+    this.run(
+
+      () =>
+        this.api.changeStatus(
+          this.folio,
+          {
+            status,
+            comment:
+              comment || null,
+          },
+        ),
+
+      'Estado actualizado',
+
+    );
+
   }
+
+
+  /* =======================================================
+     HU-11 — REGISTRAR DIAGNÓSTICO
+     ======================================================= */
+
+  protected submitDiagnosis(): void {
+
+    if (
+      this.diagnosisSaving() ||
+      this.diagnosisForm.invalid
+    ) {
+
+      this.diagnosisForm.markAllAsTouched();
+
+      return;
+
+    }
+
+
+    const values =
+      this.diagnosisForm.getRawValue();
+
+
+    this.diagnosisSaving.set(true);
+
+
+    this.api
+      .createDiagnosis(
+        this.folio,
+        {
+          evaluation:
+            values.evaluation.trim(),
+
+          rootCause:
+            values.rootCause.trim(),
+        },
+      )
+      .subscribe({
+
+        next: (diagnosis) => {
+
+          this.diagnosis.set(
+            diagnosis,
+          );
+
+          this.diagnosisSaving.set(
+            false,
+          );
+
+          this.diagnosisForm.reset({
+
+            evaluation: '',
+
+            rootCause: '',
+
+          });
+
+
+          this.toast.show(
+            'Diagnóstico registrado',
+          );
+
+        },
+
+
+        error: (
+          err: HttpErrorResponse,
+        ) => {
+
+          this.diagnosisSaving.set(
+            false,
+          );
+
+          this.toast.show(
+            this.errorMessage(err),
+          );
+
+        },
+
+      });
+
+  }
+
+
+  /* =======================================================
+     HU-12 — REGISTRAR ACTIVIDAD
+     ======================================================= */
+
+  protected submitWorkLog(): void {
+
+    if (
+      this.workLogSaving() ||
+      this.workLogForm.invalid
+    ) {
+
+      this.workLogForm.markAllAsTouched();
+
+      return;
+
+    }
+
+
+    const values =
+      this.workLogForm.getRawValue();
+
+
+    this.workLogSaving.set(true);
+
+
+    this.api
+      .createWorkLog(
+        this.folio,
+        {
+          tasks:
+            values.tasks.trim(),
+
+          materials:
+            values.materials.trim(),
+
+          timeMinutes:
+            values.timeMinutes,
+        },
+      )
+      .subscribe({
+
+        next: (workLog) => {
+
+          this.workLogs.update(
+            (items) => [
+              ...items,
+              workLog,
+            ],
+          );
+
+
+          this.workLogSaving.set(
+            false,
+          );
+
+
+          this.workLogForm.reset({
+
+            tasks: '',
+
+            materials: '',
+
+            timeMinutes: 1,
+
+          });
+
+
+          this.toast.show(
+            'Actividad registrada',
+          );
+
+        },
+
+
+        error: (
+          err: HttpErrorResponse,
+        ) => {
+
+          this.workLogSaving.set(
+            false,
+          );
+
+          this.toast.show(
+            this.errorMessage(err),
+          );
+
+        },
+
+      });
+
+  }
+
+
+  /* =======================================================
+     PERMISOS
+     ======================================================= */
+
+  private technicianMove(
+    ...from: ReportStatus[]
+  ): boolean {
+
+    const item =
+      this.report();
+
+
+    return (
+      !!item &&
+      this.role() === 'tecnico' &&
+      this.isAssignee() &&
+      from.includes(item.status)
+    );
+
+  }
+
 
   private isAssignee(): boolean {
     const item = this.report();
     return !!item && Number(item.assigneeId) === Number(this.auth.currentUser()?.id);
   }
 
+
   private isAuthor(): boolean {
     const item = this.report();
     return !!item && Number(item.authorId) === Number(this.auth.currentUser()?.id);
   }
 
-  private isRole(...roles: RoleSlug[]): boolean {
-    return roles.includes(this.role());
+
+  private isRole(
+    ...roles: RoleSlug[]
+  ): boolean {
+
+    return roles.includes(
+      this.role(),
+    );
+
   }
+
+
+  /* =======================================================
+     CARGA DEL REPORTE
+     ======================================================= */
 
   private loadReport(): void {
     this.api.getByFolio(this.folio).subscribe({
@@ -429,6 +1079,9 @@ export class ReportDetail implements OnInit, OnDestroy {
         if (item.priority) {
           this.priority.set(item.priority);
         }
+        if (item.assigneeId) {
+          this.assigneeId.set(item.assigneeId);
+        }
         this.loading.set(false);
         this.loadComments();
       },
@@ -439,51 +1092,274 @@ export class ReportDetail implements OnInit, OnDestroy {
     });
   }
 
+
+  /* =======================================================
+     HISTORIAL HU-09 / HU-10
+     ======================================================= */
+
   private loadHistory(): void {
-    this.api.listAssignments(this.folio).subscribe({
-      next: (rows) => this.assignments.set(rows),
-      error: () => this.assignments.set([]),
-    });
-    this.api.listStatusEvents(this.folio).subscribe({
-      next: (rows) => this.events.set(rows),
-      error: () => this.events.set([]),
-    });
+
+    this.api
+      .listAssignments(
+        this.folio,
+      )
+      .subscribe({
+
+        next: (rows) =>
+          this.assignments.set(rows),
+
+        error: () =>
+          this.assignments.set([]),
+
+      });
+
+
+    this.api
+      .listStatusEvents(
+        this.folio,
+      )
+      .subscribe({
+
+        next: (rows) =>
+          this.events.set(rows),
+
+        error: () =>
+          this.events.set([]),
+
+      });
+
   }
 
-  private run(request: () => ReturnType<ReportsApiService['changeStatus']>, success: string): void {
+
+  /* =======================================================
+     CARGA HU-11
+     ======================================================= */
+
+  private loadDiagnosis(): void {
+
+    this.diagnosisLoading.set(
+      true,
+    );
+
+
+    this.api
+      .getDiagnosis(
+        this.folio,
+      )
+      .subscribe({
+
+        next: (diagnosis) => {
+
+          this.diagnosis.set(
+            diagnosis,
+          );
+
+          this.diagnosisLoading.set(
+            false,
+          );
+
+        },
+
+
+        error: (
+          err: HttpErrorResponse,
+        ) => {
+
+          if (err.status === 404) {
+
+            this.diagnosis.set(
+              null,
+            );
+
+          }
+
+
+          this.diagnosisLoading.set(
+            false,
+          );
+
+        },
+
+      });
+
+  }
+
+
+  /* =======================================================
+     CARGA HU-12
+     ======================================================= */
+
+  private loadWorkLogs(): void {
+
+    this.workLogsLoading.set(
+      true,
+    );
+
+
+    this.api
+      .listWorkLogs(
+        this.folio,
+      )
+      .subscribe({
+
+        next: (rows) => {
+
+          this.workLogs.set(
+            rows,
+          );
+
+          this.workLogsLoading.set(
+            false,
+          );
+
+        },
+
+
+        error: () => {
+
+          this.workLogs.set(
+            [],
+          );
+
+          this.workLogsLoading.set(
+            false,
+          );
+
+        },
+
+      });
+
+  }
+
+
+  /* =======================================================
+     OPERACIONES GENERALES DEL WORKFLOW
+     ======================================================= */
+
+  private run(
+    request:
+      () =>
+        ReturnType<
+          ReportsApiService['changeStatus']
+        >,
+    success: string,
+  ): void {
+
     if (this.busy()) {
+
       return;
+
     }
-    this.busy.set(true);
-    request().subscribe({
-      next: (item) => {
-        this.report.set(item);
-        this.comment.set('');
-        this.busy.set(false);
-        this.toast.show(success);
-        this.loadHistory();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.busy.set(false);
-        this.toast.show(this.errorMessage(err));
-      },
-    });
+
+
+    this.busy.set(
+      true,
+    );
+
+
+    request()
+      .subscribe({
+
+        next: (item) => {
+
+          this.report.set(
+            item,
+          );
+
+
+          this.comment.set(
+            '',
+          );
+
+
+          this.busy.set(
+            false,
+          );
+
+
+          this.toast.show(
+            success,
+          );
+
+
+          this.loadHistory();
+
+        },
+
+
+        error: (
+          err: HttpErrorResponse,
+        ) => {
+
+          this.busy.set(
+            false,
+          );
+
+
+          this.toast.show(
+            this.errorMessage(err),
+          );
+
+        },
+
+      });
+
   }
 
-  private errorMessage(err: HttpErrorResponse): string {
-    const detail = err.error?.detail;
-    if (typeof detail === 'string') {
+
+  /* =======================================================
+     MENSAJES DE ERROR
+     ======================================================= */
+
+  private errorMessage(
+    err: HttpErrorResponse,
+  ): string {
+
+    const detail =
+      err.error?.detail;
+
+
+    if (
+      typeof detail === 'string'
+    ) {
+
       return detail;
+
     }
-    if (Array.isArray(detail)) {
-      const text = detail
-        .map((item) => (typeof item?.msg === 'string' ? item.msg : ''))
-        .filter(Boolean)
-        .join(' ');
+
+
+    if (
+      Array.isArray(detail)
+    ) {
+
+      const text =
+        detail
+          .map(
+            (item) =>
+              typeof item?.msg ===
+              'string'
+
+                ? item.msg
+
+                : '',
+          )
+          .filter(Boolean)
+          .join(' ');
+
+
       if (text) {
+
         return text;
+
       }
+
     }
-    return 'No se pudo completar la acción.';
+
+
+    return (
+      'No se pudo completar la acción.'
+    );
+
   }
+
 }
