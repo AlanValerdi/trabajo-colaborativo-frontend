@@ -24,6 +24,7 @@ import {
 } from '../data/models';
 import {
   ApiAssignment,
+  ApiComment,
   ApiDiagnosis,
   ApiReport,
   ApiSpecialty,
@@ -116,6 +117,11 @@ export class ReportDetail implements OnInit, OnDestroy {
 
   protected readonly names = signal<Record<number, string>>({});
 
+  /* Signals para Comentarios */
+  protected readonly comments = signal<ApiComment[]>([]);
+  protected readonly newCommentText = signal('');
+  protected readonly editingCommentId = signal<number | null>(null);
+  protected readonly editingContent = signal('');
 
   protected readonly category =
     signal<IncidentCategory | ''>('');
@@ -125,7 +131,6 @@ export class ReportDetail implements OnInit, OnDestroy {
 
   protected readonly assigneeId =
     signal<number | null>(null);
-
   protected readonly comment = signal('');
 
 
@@ -433,64 +438,49 @@ export class ReportDetail implements OnInit, OnDestroy {
 
     this.loadWorkLogs();
 
+    this.api.listSpecialties().subscribe({
+      next: (items) => this.specialties.set(items),
+      error: () => this.specialties.set([]),
+    });
 
-    this.api
-      .listSpecialties()
-      .subscribe({
+    const currentUser = this.auth.currentUser();
+    if (currentUser && currentUser.name) {
+      try {
+        const known = JSON.parse(localStorage.getItem('known_user_names') || '{}');
+        known[Number(currentUser.id)] = currentUser.name;
+        localStorage.setItem('known_user_names', JSON.stringify(known));
+      } catch {}
+    }
 
-        next: (items) =>
-          this.specialties.set(items),
+    this.usersApi.list().subscribe({
+      next: (users) => {
+        let known: Record<number, string> = {};
+        try {
+          known = JSON.parse(localStorage.getItem('known_user_names') || '{}');
+        } catch {}
 
-        error: () =>
-          this.specialties.set([]),
+        for (const user of users) {
+          known[Number(user.id)] = user.name;
+        }
+        try {
+          localStorage.setItem('known_user_names', JSON.stringify(known));
+        } catch {}
 
-      });
+        this.names.set(known);
+        this.technicians.set(users.filter((user) => user.is_active && user.roles.includes('tecnico')));
+        this.loadComments();
+      },
+      error: () => {
+        let known: Record<number, string> = {};
+        try {
+          known = JSON.parse(localStorage.getItem('known_user_names') || '{}');
+        } catch {}
 
-
-    this.usersApi
-      .list()
-      .subscribe({
-
-        next: (users) => {
-
-          const names:
-            Record<number, string> = {};
-
-
-          for (const user of users) {
-
-            names[user.id] =
-              user.name;
-
-          }
-
-
-          this.names.set(names);
-
-
-          this.technicians.set(
-
-            users.filter(
-              (user) =>
-                user.is_active &&
-                user.roles.includes('tecnico'),
-            ),
-
-          );
-
-        },
-
-
-        error: () => {
-
-          this.names.set({});
-
-          this.technicians.set([]);
-
-        },
-
-      });
-
+        this.names.set(known);
+        this.technicians.set([]);
+        this.loadComments();
+      },
+    });
   }
 
 
@@ -500,40 +490,57 @@ export class ReportDetail implements OnInit, OnDestroy {
 
   }
 
-
   /* =======================================================
      FUNCIONES DE APOYO
      ======================================================= */
 
-  protected locationLines(
-    label?: string,
-  ): string[] {
-
-    if (!label) {
-
-      return ['—'];
-
+  protected cleanText(text?: string | null): string {
+    if (!text) return '—';
+    try {
+      return decodeURIComponent(escape(text));
+    } catch {
+      return text.replace(/Ã³/g, 'ó').replace(/Ã/g, 'á');
     }
-
-    return label
-      .split(' - ')
-      .map(
-        (part) =>
-          part.trim(),
-      );
-
   }
 
+  protected locationLines(label?: string): string[] {
+    if (!label || !label.trim()) {
+      return ['—'];
+    }
+    return label.split(' - ').map((part) => this.cleanText(part.trim()));
+  }
 
-  protected personName(
-    id: number,
-  ): string {
+  protected personName(id: number): string {
+    const targetId = Number(id);
 
-    return (
-      this.names()[id] ??
-      `Usuario ${id}`
-    );
+    const known = this.names();
+    if (known[targetId]) {
+      return known[targetId];
+    }
 
+    const reportItem = this.report();
+    if (reportItem && Number(reportItem.authorId) === targetId && reportItem.author?.name) {
+      return reportItem.author.name;
+    }
+
+    const currentUser = this.auth.currentUser();
+    if (currentUser && Number(currentUser.id) === targetId && currentUser.name) {
+      return currentUser.name;
+    }
+
+    return `Usuario ${id}`;
+  }
+
+  protected personInitial(id: number): string {
+    const name = this.personName(id);
+    if (!name || name.startsWith('Usuario')) return 'U';
+    return name.charAt(0).toUpperCase();
+  }
+
+  protected formatDate(dateStr: string): string {
+    if (!dateStr) return '';
+    const formattedStr = dateStr.includes('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`;
+    return formattedStr;
   }
 
 
@@ -684,6 +691,115 @@ export class ReportDetail implements OnInit, OnDestroy {
 
   }
 
+  /* --- Funciones de Comentarios --- */
+  protected loadComments(): void {
+    const item = this.report();
+    if (!item) return;
+
+    this.api.getComments(item.id).subscribe({
+      next: (items) => this.comments.set(items),
+      error: () => this.comments.set([]),
+    });
+  }
+
+  protected onNewCommentInput(event: Event): void {
+    this.newCommentText.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  protected onEditCommentInput(event: Event): void {
+    this.editingContent.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  protected addComment(): void {
+    const text = this.newCommentText().trim();
+    const item = this.report();
+
+    if (!text) {
+      this.toast.show('Escribe un comentario antes de publicar.');
+      return;
+    }
+    if (!item) return;
+
+    this.busy.set(true);
+    this.api.createComment(item.id, text).subscribe({
+      next: () => {
+        this.newCommentText.set('');
+        this.busy.set(false);
+        this.toast.show('Comentario publicado');
+        this.loadComments();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.busy.set(false);
+        this.toast.show(this.errorMessage(err));
+      },
+    });
+  }
+
+  protected startEditComment(c: ApiComment): void {
+    this.editingCommentId.set(c.id);
+    this.editingContent.set(c.content);
+  }
+
+  protected cancelEditComment(): void {
+    this.editingCommentId.set(null);
+    this.editingContent.set('');
+  }
+
+  protected saveEditComment(commentId: number): void {
+    const text = this.editingContent().trim();
+    if (!text) return;
+
+    this.busy.set(true);
+    this.api.updateComment(commentId, text).subscribe({
+      next: () => {
+        this.editingCommentId.set(null);
+        this.editingContent.set('');
+        this.busy.set(false);
+        this.toast.show('Comentario actualizado');
+        this.loadComments();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.busy.set(false);
+        this.toast.show(this.errorMessage(err));
+      },
+    });
+  }
+
+  protected deleteComment(commentId: number): void {
+    if (!confirm('¿Deseas eliminar este comentario?')) return;
+
+    this.busy.set(true);
+    this.api.deleteComment(commentId).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.toast.show('Comentario eliminado');
+        this.loadComments();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.busy.set(false);
+        this.toast.show(this.errorMessage(err));
+      },
+    });
+  }
+
+  /* Edición exclusiva para el autor del comentario */
+  protected canEditComment(c: ApiComment): boolean {
+    const user = this.auth.currentUser();
+    if (!user) return false;
+    return Number(c.user_id) === Number(user.id);
+  }
+
+  /* Eliminación para el autor O administradores de la plataforma */
+  protected canDeleteComment(c: ApiComment): boolean {
+    const user = this.auth.currentUser();
+    if (!user) return false;
+
+    const isOwner = Number(c.user_id) === Number(user.id);
+    const currentSlug = this.role();
+    const isAdmin = currentSlug === 'administrador' || user.roles?.includes('administrador');
+
+    return isOwner || isAdmin;
+  }
 
   protected move(
     status: ReportStatus,
@@ -926,32 +1042,14 @@ export class ReportDetail implements OnInit, OnDestroy {
 
 
   private isAssignee(): boolean {
-
-    const item =
-      this.report();
-
-
-    return (
-      !!item &&
-      item.assigneeId ===
-        this.auth.currentUser()?.id
-    );
-
+    const item = this.report();
+    return !!item && Number(item.assigneeId) === Number(this.auth.currentUser()?.id);
   }
 
 
   private isAuthor(): boolean {
-
-    const item =
-      this.report();
-
-
-    return (
-      !!item &&
-      item.authorId ===
-        this.auth.currentUser()?.id
-    );
-
+    const item = this.report();
+    return !!item && Number(item.authorId) === Number(this.auth.currentUser()?.id);
   }
 
 
@@ -971,77 +1069,27 @@ export class ReportDetail implements OnInit, OnDestroy {
      ======================================================= */
 
   private loadReport(): void {
-
-    this.api
-      .getByFolio(
-        this.folio,
-      )
-      .subscribe({
-
-        next: (item) => {
-
-          this.report.set(
-            item,
-          );
-
-
-          this.crumbs
-            .reportTitle
-            .set(
-              item.title,
-            );
-
-
-          if (item.category) {
-
-            this.category.set(
-              item.category,
-            );
-
-          }
-
-
-          if (item.priority) {
-
-            this.priority.set(
-              item.priority,
-            );
-
-          }
-
-
-          if (item.assigneeId) {
-
-            this.assigneeId.set(
-              item.assigneeId,
-            );
-
-          }
-
-
-          this.loading.set(
-            false,
-          );
-
-        },
-
-
-        error: (
-          err: HttpErrorResponse,
-        ) => {
-
-          this.notFound.set(
-            err.status === 404,
-          );
-
-          this.loading.set(
-            false,
-          );
-
-        },
-
-      });
-
+    this.api.getByFolio(this.folio).subscribe({
+      next: (item) => {
+        this.report.set(item);
+        this.crumbs.reportTitle.set(item.title);
+        if (item.category) {
+          this.category.set(item.category);
+        }
+        if (item.priority) {
+          this.priority.set(item.priority);
+        }
+        if (item.assigneeId) {
+          this.assigneeId.set(item.assigneeId);
+        }
+        this.loading.set(false);
+        this.loadComments();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.notFound.set(err.status === 404);
+        this.loading.set(false);
+      },
+    });
   }
 
 

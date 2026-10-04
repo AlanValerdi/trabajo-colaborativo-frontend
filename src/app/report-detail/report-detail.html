@@ -30,7 +30,7 @@
       <div>
 
         <strong>
-          {{ view.facultyLabel || '—' }}
+          {{ cleanText(view.facultyLabel) }}
         </strong>
 
         <span>
@@ -865,11 +865,9 @@
 
     }
 
-
     <!-- =====================================================
          HISTORIAL DE ASIGNACIONES
          ===================================================== -->
-
     @if (assignments().length) {
 
       <hr class="rule" />
@@ -900,7 +898,7 @@
                 por
                 {{ personName(row.assignedById) }}
                 ·
-                {{ row.assignedAt | date: 'short' }}
+                {{ formatDate(row.assignedAt) | date: 'short' }}
 
               </span>
 
@@ -953,11 +951,9 @@
 
                 {{ personName(row.actorId) }}
                 ·
-                {{ row.createdAt | date: 'short' }}
+                {{ formatDate(row.createdAt) | date: 'short' }}
 
               </span>
-
-
               @if (row.comment) {
 
                 <em>
@@ -975,6 +971,96 @@
       </section>
 
     }
+
+    <!-- SECCIÓN DE COMENTARIOS -->
+    <hr class="rule" />
+    <section class="comments-section">
+      <h2 class="section-title">Comentarios</h2>
+
+      <!-- Caja para escribir comentario -->
+      <div class="comment-box">
+        <textarea
+          rows="3"
+          class="comment-textarea"
+          [value]="newCommentText()"
+          (input)="onNewCommentInput($event)"
+          [disabled]="busy()"
+          placeholder="Escribe un comentario sobre este reporte...">
+        </textarea>
+        <div class="comment-box-actions">
+          <button type="button" class="btn-primary-custom" (click)="addComment()" [disabled]="busy() || !newCommentText().trim()">
+            Publicar Comentario
+          </button>
+        </div>
+      </div>
+
+      <!-- Listado de Comentarios -->
+      @if (comments().length) {
+        <div class="comments-list">
+          @for (c of comments(); track c.id) {
+            <div class="comment-card">
+              <!-- Encabezado con Avatar de usuario -->
+              <div class="comment-header">
+                <div class="user-info">
+                  <div class="user-avatar">
+                    {{ personInitial(c.user_id) }}
+                  </div>
+                  <div class="user-details">
+                    <span class="user-name">{{ personName(c.user_id) }}</span>
+                    <span class="comment-date">{{ formatDate(c.created_at) | date: 'MMM d, y, h:mm a' }}</span>
+                  </div>
+                </div>
+
+                <!-- Botones con Íconos (Lápiz y Basura) -->
+                <div class="comment-actions">
+                  @if (canEditComment(c) && editingCommentId() !== c.id) {
+                    <button type="button" class="icon-btn" title="Editar" (click)="startEditComment(c)" [disabled]="busy()">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                      </svg>
+                    </button>
+                  }
+                  @if (canDeleteComment(c) && editingCommentId() !== c.id) {
+                    <button type="button" class="icon-btn delete-btn" title="Eliminar" (click)="deleteComment(c.id)" [disabled]="busy()">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Contenido del Comentario o Formulario de Edición -->
+              @if (editingCommentId() !== c.id) {
+                <p class="comment-body">{{ c.content }}</p>
+              } @else {
+                <div class="edit-box">
+                  <textarea
+                    rows="2"
+                    class="comment-textarea"
+                    [value]="editingContent()"
+                    (input)="onEditCommentInput($event)"
+                    [disabled]="busy()">
+                  </textarea>
+                  <div class="edit-box-actions">
+                    <button type="button" class="btn-primary-custom btn-sm" (click)="saveEditComment(c.id)" [disabled]="busy() || !editingContent().trim()">
+                      Guardar
+                    </button>
+                    <button type="button" class="btn-secondary-custom btn-sm" (click)="cancelEditComment()" [disabled]="busy()">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="no-comments">No hay comentarios aún en este reporte.</p>
+      }
+    </section>
 
   </article>
 
