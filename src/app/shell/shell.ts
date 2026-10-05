@@ -145,6 +145,7 @@ export class Shell {
   protected selectRole(slug: RoleSlug): void {
     this.roles.setRole(slug);
     this.roleMenuOpen.set(false);
+    this.router.navigate(['/inicio']);
   }
 
   protected logout(): void {
