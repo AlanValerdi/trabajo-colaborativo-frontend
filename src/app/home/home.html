@@ -1,12 +1,15 @@
 <section class="home">
   @if (loading()) {
-    <p class="loading">Cargando reportes…</p>
+    <app-spinner label="Cargando reportes…" />
   } @else if (loadError(); as error) {
     <div class="empty-state">
       <p>{{ error }}</p>
       <button class="primary" type="button" (click)="loadReports()">Reintentar</button>
     </div>
   } @else {
+    <!-- HU-21 — Actividad reciente (awareness del equipo) -->
+    <app-recent-activity />
+
     @switch (roleSlug()) {
       @case ('reportante') {
         <div class="section-head">
@@ -198,7 +201,7 @@
         @switch (adminContext()) {
           @case ('usuarios') {
             @if (usersLoading()) {
-              <p class="loading">Cargando usuarios…</p>
+              <app-spinner label="Cargando usuarios…" />
             } @else if (usersError(); as error) {
               <div class="empty-state compact">
                 <p>{{ error }}</p>
@@ -313,7 +316,7 @@
             </div>
 
             @if (catalogLoading()) {
-              <p class="loading">Cargando catálogo…</p>
+              <app-spinner label="Cargando catálogo…" />
             } @else if (catalogError(); as error) {
               <div class="empty-state compact">
                 <p>{{ error }}</p>

@@ -1,6 +1,6 @@
 <section class="community">
   @if (loading()) {
-    <p class="loading">Cargando reportes de la comunidad…</p>
+    <app-spinner label="Cargando reportes de la comunidad…" />
   } @else if (loadError(); as error) {
     <div class="empty-state">
       <p>{{ error }}</p>

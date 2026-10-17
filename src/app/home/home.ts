@@ -23,6 +23,8 @@ import { HomeSearchService } from '../session/home-search.service';
 import { ConfirmService } from '../ui/confirm/confirm.service';
 import { Dialog } from '../ui/dialog/dialog';
 import { ToastService } from '../ui/toast/toast.service';
+import { Spinner } from '../ui/spinner/spinner';
+import { RecentActivity } from '../recent-activity/recent-activity';
 import {
   LucideCamera,
   LucideEye,
@@ -55,6 +57,8 @@ type CatalogDialogMode = 'create' | 'edit';
     LucideTrash2,
     LucideUpload,
     LucideX,
+    RecentActivity,
+    Spinner,
   ],
   templateUrl: './home.html',
   styleUrl: './home.css',
