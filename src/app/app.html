@@ -1,1 +1,8 @@
 <router-outlet />
+
+@if (navigating()) {
+  <div class="route-loading" role="status" aria-live="polite">
+    <span class="route-spinner" aria-hidden="true"></span>
+    <span class="route-loading-text">Cargando…</span>
+  </div>
+}

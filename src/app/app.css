@@ -2,3 +2,52 @@
   display: block;
   height: 100%;
 }
+
+/* ═══════════════════════════════════════════════
+   SPINNER GLOBAL DE NAVEGACIÓN ENTRE VISTAS
+═══════════════════════════════════════════════ */
+
+.route-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  background: rgba(241, 245, 249, 0.72);
+  backdrop-filter: blur(2px);
+  /* El retardo evita el parpadeo en navegaciones instantáneas */
+  animation: route-loading-fade 0.18s ease 0.12s both;
+}
+
+.route-spinner {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 4px solid var(--border-color, #cbd5e1);
+  border-top-color: var(--color-primary, #003b5c);
+  animation: route-spinner-rotate 0.8s linear infinite;
+}
+
+.route-loading-text {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-secondary, #334155);
+}
+
+@keyframes route-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes route-loading-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

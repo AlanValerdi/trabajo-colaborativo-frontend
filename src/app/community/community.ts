@@ -2,10 +2,11 @@ import { Component, computed, effect, inject, OnInit, signal } from '@angular/co
 import { ReportCard } from '../report-card/report-card';
 import { ApiReport, ReportsApiService } from '../data/reports-api.service';
 import { HomeSearchService } from '../session/home-search.service';
+import { Spinner } from '../ui/spinner/spinner';
 
 @Component({
   selector: 'app-community',
-  imports: [ReportCard],
+  imports: [ReportCard, Spinner],
   templateUrl: './community.html',
   styleUrl: './community.css',
 })

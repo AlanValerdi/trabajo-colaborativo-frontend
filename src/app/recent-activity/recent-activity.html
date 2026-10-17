@@ -1,0 +1,70 @@
+<section class="activity-panel">
+
+  <div class="activity-head">
+    <h2>Actividad reciente</h2>
+
+    <div class="activity-head-actions">
+      <button
+        type="button"
+        class="ghost"
+        (click)="load()"
+        [disabled]="loading()"
+        aria-label="Actualizar actividad"
+      >
+        Actualizar
+      </button>
+
+      <button
+        type="button"
+        class="ghost"
+        (click)="toggle()"
+        [attr.aria-expanded]="expanded()"
+      >
+        {{ expanded() ? 'Ocultar' : 'Mostrar' }}
+      </button>
+    </div>
+  </div>
+
+  @if (expanded()) {
+
+    @if (loading()) {
+      <app-spinner label="Cargando actividad…" />
+    } @else if (loadError()) {
+      <p class="activity-empty">
+        No se pudo cargar la actividad reciente.
+      </p>
+    } @else if (items().length === 0) {
+      <p class="activity-empty">
+        Aún no hay actividad registrada.
+      </p>
+    } @else {
+
+      <ul class="activity-list">
+        @for (item of items(); track $index) {
+          <li class="activity-item">
+
+            <span class="activity-badge activity-type-{{ item.type }}">
+              {{ typeLabel(item.type) }}
+            </span>
+
+            <div class="activity-body">
+              <p class="activity-summary">{{ item.summary }}</p>
+
+              <span class="activity-meta">
+                <a [routerLink]="['/inicio/reportes', item.reportFolio]">
+                  {{ item.reportTitle }}
+                </a>
+                ·
+                {{ formatDate(item.timestamp) | date: 'short' }}
+              </span>
+            </div>
+
+          </li>
+        }
+      </ul>
+
+    }
+
+  }
+
+</section>

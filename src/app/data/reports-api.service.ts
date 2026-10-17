@@ -61,12 +61,95 @@ export interface CreateApiReportInput {
   imageUrl?: string | null;
 }
 
+export interface CommentAuthor {
+  id: number;
+  name: string;
+}
+
+export interface CommentMention {
+  id: number;
+  name: string;
+}
+
 export interface ApiComment {
   id: number;
-  report_id: number;
-  user_id: number;
+  reportId: number;
+  userId: number;
+  author: CommentAuthor;
   content: string;
-  created_at: string;
+  mentions: CommentMention[];
+  createdAt: string;
+}
+
+/* =========================================================
+   HU-17 — EVIDENCIAS
+   ========================================================= */
+
+export type EvidenceStage = 'antes' | 'durante' | 'despues';
+
+export interface ApiEvidence {
+  id: number;
+  reportId: number;
+  uploaderId: number;
+  uploader: CommentAuthor;
+  fileUrl: string;
+  caption: string | null;
+  stage: EvidenceStage | null;
+  createdAt: string;
+}
+
+/* =========================================================
+   HU-16 — COLABORACIÓN ENTRE ÁREAS
+   ========================================================= */
+
+export type CollaborationStatus = 'solicitada' | 'aceptada' | 'completada' | 'rechazada';
+
+export interface CollaborationSpecialty {
+  id: number;
+  name: string;
+  category: IncidentCategory;
+}
+
+export interface ApiCollaboration {
+  id: number;
+  reportId: number;
+  reportFolio: string;
+  requestedById: number;
+  requestedBy: CommentAuthor;
+  fromSpecialty: CollaborationSpecialty | null;
+  toSpecialty: CollaborationSpecialty;
+  reason: string;
+  status: CollaborationStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCollaborationInput {
+  category: IncidentCategory;
+  reason: string;
+}
+
+/* =========================================================
+   HU-18 / HU-21 — HISTORIAL Y ACTIVIDAD RECIENTE
+   ========================================================= */
+
+export interface ApiHistoryEntry {
+  type: string;
+  timestamp: string;
+  actorId: number | null;
+  actorName: string;
+  summary: string;
+  detail?: Record<string, unknown> | null;
+}
+
+export interface ApiActivityEntry extends ApiHistoryEntry {
+  reportFolio: string;
+  reportTitle: string;
+}
+
+export interface ApiParticipant {
+  id: number;
+  name: string;
 }
 
 /* =========================================================
@@ -281,13 +364,16 @@ export class ReportsApiService {
     );
   }
 
-  /* --- Métodos para Comentarios --- */
+  /* --- Métodos para Comentarios (HU-13 / HU-14) --- */
   getComments(reportId: number): Observable<ApiComment[]> {
     return this.http.get<ApiComment[]>(`${this.apiUrl}/reports/${reportId}/comments`);
   }
 
-  createComment(reportId: number, content: string): Observable<ApiComment> {
-    return this.http.post<ApiComment>(`${this.apiUrl}/reports/${reportId}/comments`, { content });
+  createComment(reportId: number, content: string, mentions: number[] = []): Observable<ApiComment> {
+    return this.http.post<ApiComment>(`${this.apiUrl}/reports/${reportId}/comments`, {
+      content,
+      mentions,
+    });
   }
 
   updateComment(commentId: number, content: string): Observable<ApiComment> {
@@ -346,6 +432,123 @@ export class ReportsApiService {
     return this.http.post<ApiWorkLog>(
       `${this.apiUrl}/reports/${folio}/work-logs`,
       input,
+    );
+  }
+
+
+  /* =======================================================
+     HU-17 — EVIDENCIAS
+     ======================================================= */
+
+  listEvidences(
+    folio: string,
+  ): Observable<ApiEvidence[]> {
+
+    return this.http.get<ApiEvidence[]>(
+      `${this.apiUrl}/reports/${folio}/evidences`,
+    );
+  }
+
+
+  createEvidence(
+    folio: string,
+    file: File,
+    caption: string | null,
+    stage: EvidenceStage | null,
+  ): Observable<ApiEvidence> {
+
+    const formData = new FormData();
+
+    formData.append('file', file);
+
+    if (caption) {
+      formData.append('caption', caption);
+    }
+
+    if (stage) {
+      formData.append('stage', stage);
+    }
+
+    return this.http.post<ApiEvidence>(
+      `${this.apiUrl}/reports/${folio}/evidences`,
+      formData,
+    );
+  }
+
+
+  /* =======================================================
+     HU-16 — COLABORACIÓN ENTRE ÁREAS
+     ======================================================= */
+
+  listCollaborations(
+    folio: string,
+  ): Observable<ApiCollaboration[]> {
+
+    return this.http.get<ApiCollaboration[]>(
+      `${this.apiUrl}/reports/${folio}/collaborations`,
+    );
+  }
+
+
+  requestCollaboration(
+    folio: string,
+    input: CreateCollaborationInput,
+  ): Observable<ApiCollaboration> {
+
+    return this.http.post<ApiCollaboration>(
+      `${this.apiUrl}/reports/${folio}/collaborations`,
+      input,
+    );
+  }
+
+
+  updateCollaborationStatus(
+    collaborationId: number,
+    statusValue: CollaborationStatus,
+  ): Observable<ApiCollaboration> {
+
+    return this.http.patch<ApiCollaboration>(
+      `${this.apiUrl}/collaborations/${collaborationId}`,
+      { status: statusValue },
+    );
+  }
+
+
+  /* =======================================================
+     HU-18 — HISTORIAL UNIFICADO
+     ======================================================= */
+
+  getHistory(
+    folio: string,
+  ): Observable<ApiHistoryEntry[]> {
+
+    return this.http.get<ApiHistoryEntry[]>(
+      `${this.apiUrl}/reports/${folio}/history`,
+    );
+  }
+
+
+  listParticipants(
+    folio: string,
+  ): Observable<ApiParticipant[]> {
+
+    return this.http.get<ApiParticipant[]>(
+      `${this.apiUrl}/reports/${folio}/participants`,
+    );
+  }
+
+
+  /* =======================================================
+     HU-21 — ACTIVIDAD RECIENTE
+     ======================================================= */
+
+  recentActivity(
+    limit = 20,
+  ): Observable<ApiActivityEntry[]> {
+
+    return this.http.get<ApiActivityEntry[]>(
+      `${this.apiUrl}/activity/recent`,
+      { params: { limit } },
     );
   }
 
