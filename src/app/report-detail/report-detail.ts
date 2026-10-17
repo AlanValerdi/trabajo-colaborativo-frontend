@@ -24,14 +24,21 @@ import {
 } from '../data/models';
 import {
   ApiAssignment,
+  ApiCollaboration,
   ApiComment,
   ApiDiagnosis,
+  ApiEvidence,
+  ApiHistoryEntry,
+  ApiParticipant,
   ApiReport,
   ApiSpecialty,
   ApiStatusEvent,
   ApiWorkLog,
+  CollaborationStatus,
+  EvidenceStage,
   ReportsApiService,
 } from '../data/reports-api.service';
+import { Spinner } from '../ui/spinner/spinner';
 import { statusLabel } from '../data/report-status';
 import {
   ApiUser,
@@ -71,6 +78,7 @@ const REOPEN_FROM: ReportStatus[] = [
     ReportStatusTimeline,
     DatePipe,
     ReactiveFormsModule,
+    Spinner,
   ],
 
   templateUrl: './report-detail.html',
@@ -122,6 +130,54 @@ export class ReportDetail implements OnInit, OnDestroy {
   protected readonly newCommentText = signal('');
   protected readonly editingCommentId = signal<number | null>(null);
   protected readonly editingContent = signal('');
+
+  /* =======================================================
+     HU-14 — MENCIONES EN COMENTARIOS
+     ======================================================= */
+
+  protected readonly participants = signal<ApiParticipant[]>([]);
+  protected readonly mentionQuery = signal<string | null>(null);
+  private mentionStart = -1;
+  private commentCaret = 0;
+
+  protected readonly mentionCandidates = computed(() => {
+    const query = this.mentionQuery();
+    if (query === null) {
+      return [];
+    }
+    const normalized = query.trim().toLowerCase();
+    return this.participants()
+      .filter((person) => person.name.toLowerCase().includes(normalized))
+      .slice(0, 6);
+  });
+
+  /* =======================================================
+     HU-17 — EVIDENCIAS
+     ======================================================= */
+
+  protected readonly evidences = signal<ApiEvidence[]>([]);
+  protected readonly evidencesLoading = signal(true);
+  protected readonly evidenceSaving = signal(false);
+  protected readonly evidenceFile = signal<File | null>(null);
+  protected readonly evidenceCaption = signal('');
+  protected readonly evidenceStage = signal<EvidenceStage | ''>('');
+
+  /* =======================================================
+     HU-16 — COLABORACIÓN ENTRE ÁREAS
+     ======================================================= */
+
+  protected readonly collaborations = signal<ApiCollaboration[]>([]);
+  protected readonly collaborationsLoading = signal(true);
+  protected readonly collabSaving = signal(false);
+  protected readonly collabCategory = signal<IncidentCategory | ''>('');
+  protected readonly collabReason = signal('');
+
+  /* =======================================================
+     HU-18 — HISTORIAL UNIFICADO
+     ======================================================= */
+
+  protected readonly history = signal<ApiHistoryEntry[]>([]);
+  protected readonly historyLoading = signal(true);
 
   protected readonly category =
     signal<IncidentCategory | ''>('');
@@ -421,6 +477,80 @@ export class ReportDetail implements OnInit, OnDestroy {
 
 
   /* =======================================================
+     PERMISOS HU-16 / HU-17
+     ======================================================= */
+
+  protected readonly canAddEvidence = computed(() => {
+
+    const item = this.report();
+
+    return (
+      !!item &&
+      item.status !== 'cerrada' &&
+      (
+        this.isAuthor() ||
+        this.isAssignee() ||
+        this.isRole(
+          'tecnico',
+          'responsable',
+          'coordinador',
+          'administrador',
+        )
+      )
+    );
+
+  });
+
+
+  protected readonly canRequestCollaboration = computed(() => {
+
+    const item = this.report();
+
+    return (
+      !!item &&
+      item.category != null &&
+      (
+        item.status === 'asignada' ||
+        item.status === 'en_progreso' ||
+        item.status === 'bloqueada'
+      ) &&
+      (
+        this.isAssignee() ||
+        this.isRole(
+          'responsable',
+          'coordinador',
+          'administrador',
+        )
+      )
+    );
+
+  });
+
+
+  protected readonly canManageCollaborations = computed(() =>
+
+    this.isAssignee() ||
+    this.isRole(
+      'responsable',
+      'coordinador',
+      'administrador',
+    )
+
+  );
+
+
+  protected readonly collabSpecialtyOptions = computed(() => {
+
+    const current = this.report()?.category ?? null;
+
+    return this.specialties().filter(
+      (item) => item.category !== current,
+    );
+
+  });
+
+
+  /* =======================================================
      INICIALIZACIÓN
      ======================================================= */
 
@@ -437,6 +567,14 @@ export class ReportDetail implements OnInit, OnDestroy {
     this.loadDiagnosis();
 
     this.loadWorkLogs();
+
+    this.loadEvidences();
+
+    this.loadCollaborations();
+
+    this.loadUnifiedHistory();
+
+    this.loadParticipants();
 
     this.api.listSpecialties().subscribe({
       next: (items) => this.specialties.set(items),
@@ -703,7 +841,108 @@ export class ReportDetail implements OnInit, OnDestroy {
   }
 
   protected onNewCommentInput(event: Event): void {
-    this.newCommentText.set((event.target as HTMLTextAreaElement).value);
+    const target = event.target as HTMLTextAreaElement;
+    this.newCommentText.set(target.value);
+    this.commentCaret = target.selectionStart ?? target.value.length;
+    this.updateMentionContext(target.value);
+  }
+
+  /* --- HU-14: Menciones --- */
+
+  /**
+   * Detecta si el usuario está escribiendo una mención: busca el último "@"
+   * antes del cursor que no tenga espacios después y lo usa como consulta.
+   */
+  private updateMentionContext(value: string): void {
+    const caret = this.commentCaret;
+    const before = value.slice(0, caret);
+    const at = before.lastIndexOf('@');
+
+    if (at === -1) {
+      this.closeMentions();
+      return;
+    }
+
+    const prev = at > 0 ? before[at - 1] : ' ';
+    const token = before.slice(at + 1);
+
+    if ((prev !== ' ' && prev !== '\n' && at !== 0) || token.includes('\n') || token.length > 40) {
+      this.closeMentions();
+      return;
+    }
+
+    this.mentionStart = at;
+    this.mentionQuery.set(token);
+  }
+
+  protected closeMentions(): void {
+    this.mentionStart = -1;
+    this.mentionQuery.set(null);
+  }
+
+  protected insertMention(person: ApiParticipant): void {
+    if (this.mentionStart < 0) {
+      return;
+    }
+
+    const value = this.newCommentText();
+    const before = value.slice(0, this.mentionStart);
+    const after = value.slice(this.commentCaret);
+    const inserted = `@${person.name} `;
+
+    this.newCommentText.set(`${before}${inserted}${after}`);
+    this.commentCaret = before.length + inserted.length;
+    this.closeMentions();
+  }
+
+  /** IDs de los participantes cuyo @Nombre aparece en el texto. */
+  private mentionIdsIn(text: string): number[] {
+    return this.participants()
+      .filter((person) => text.includes(`@${person.name}`))
+      .map((person) => person.id);
+  }
+
+  /**
+   * Divide el contenido de un comentario en segmentos para resaltar
+   * las menciones registradas (HU-14).
+   */
+  protected commentSegments(c: ApiComment): { text: string; mention: boolean }[] {
+    const names = (c.mentions ?? [])
+      .map((person) => `@${person.name}`)
+      .sort((a, b) => b.length - a.length);
+
+    if (!names.length) {
+      return [{ text: c.content, mention: false }];
+    }
+
+    let segments: { text: string; mention: boolean }[] = [
+      { text: c.content, mention: false },
+    ];
+
+    for (const name of names) {
+      const next: { text: string; mention: boolean }[] = [];
+
+      for (const segment of segments) {
+        if (segment.mention || !segment.text.includes(name)) {
+          next.push(segment);
+          continue;
+        }
+
+        const parts = segment.text.split(name);
+        parts.forEach((part, index) => {
+          if (index > 0) {
+            next.push({ text: name, mention: true });
+          }
+          if (part) {
+            next.push({ text: part, mention: false });
+          }
+        });
+      }
+
+      segments = next;
+    }
+
+    return segments;
   }
 
   protected onEditCommentInput(event: Event): void {
@@ -721,12 +960,14 @@ export class ReportDetail implements OnInit, OnDestroy {
     if (!item) return;
 
     this.busy.set(true);
-    this.api.createComment(item.id, text).subscribe({
+    this.api.createComment(item.id, text, this.mentionIdsIn(text)).subscribe({
       next: () => {
         this.newCommentText.set('');
+        this.closeMentions();
         this.busy.set(false);
         this.toast.show('Comentario publicado');
         this.loadComments();
+        this.loadUnifiedHistory();
       },
       error: (err: HttpErrorResponse) => {
         this.busy.set(false);
@@ -786,7 +1027,7 @@ export class ReportDetail implements OnInit, OnDestroy {
   protected canEditComment(c: ApiComment): boolean {
     const user = this.auth.currentUser();
     if (!user) return false;
-    return Number(c.user_id) === Number(user.id);
+    return Number(c.userId) === Number(user.id);
   }
 
   /* Eliminación para el autor O administradores de la plataforma */
@@ -794,7 +1035,7 @@ export class ReportDetail implements OnInit, OnDestroy {
     const user = this.auth.currentUser();
     if (!user) return false;
 
-    const isOwner = Number(c.user_id) === Number(user.id);
+    const isOwner = Number(c.userId) === Number(user.id);
     const currentSlug = this.role();
     const isAdmin = currentSlug === 'administrador' || user.roles?.includes('administrador');
 
@@ -1233,6 +1474,303 @@ export class ReportDetail implements OnInit, OnDestroy {
 
 
   /* =======================================================
+     HU-17 — EVIDENCIAS
+     ======================================================= */
+
+  private loadEvidences(): void {
+    this.evidencesLoading.set(true);
+
+    this.api.listEvidences(this.folio).subscribe({
+      next: (rows) => {
+        this.evidences.set(rows);
+        this.evidencesLoading.set(false);
+      },
+      error: () => {
+        this.evidences.set([]);
+        this.evidencesLoading.set(false);
+      },
+    });
+  }
+
+  protected onEvidenceFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.evidenceFile.set(input.files?.[0] ?? null);
+  }
+
+  protected onEvidenceCaption(event: Event): void {
+    this.evidenceCaption.set((event.target as HTMLInputElement).value);
+  }
+
+  protected onEvidenceStage(event: Event): void {
+    this.evidenceStage.set(
+      (event.target as HTMLSelectElement).value as EvidenceStage | '',
+    );
+  }
+
+  protected submitEvidence(): void {
+    const file = this.evidenceFile();
+
+    if (!file) {
+      this.toast.show('Selecciona una fotografía o documento.');
+      return;
+    }
+
+    if (this.evidenceSaving()) {
+      return;
+    }
+
+    this.evidenceSaving.set(true);
+
+    this.api
+      .createEvidence(
+        this.folio,
+        file,
+        this.evidenceCaption().trim() || null,
+        this.evidenceStage() || null,
+      )
+      .subscribe({
+        next: () => {
+          this.evidenceSaving.set(false);
+          this.evidenceFile.set(null);
+          this.evidenceCaption.set('');
+          this.evidenceStage.set('');
+          this.toast.show('Evidencia adjuntada');
+          this.loadEvidences();
+          this.loadUnifiedHistory();
+        },
+        error: (err: HttpErrorResponse) => {
+          this.evidenceSaving.set(false);
+          this.toast.show(this.errorMessage(err));
+        },
+      });
+  }
+
+  protected isPdf(url: string): boolean {
+    return url.toLowerCase().endsWith('.pdf');
+  }
+
+  protected stageLabel(stage: EvidenceStage | null): string {
+    switch (stage) {
+      case 'antes':
+        return 'Antes';
+      case 'durante':
+        return 'Durante';
+      case 'despues':
+        return 'Después';
+      default:
+        return 'Evidencia';
+    }
+  }
+
+  /* =======================================================
+     HU-16 — COLABORACIÓN ENTRE ÁREAS
+     ======================================================= */
+
+  private loadCollaborations(): void {
+    this.collaborationsLoading.set(true);
+
+    this.api.listCollaborations(this.folio).subscribe({
+      next: (rows) => {
+        this.collaborations.set(rows);
+        this.collaborationsLoading.set(false);
+      },
+      error: () => {
+        this.collaborations.set([]);
+        this.collaborationsLoading.set(false);
+      },
+    });
+  }
+
+  protected onCollabCategory(event: Event): void {
+    this.collabCategory.set(
+      (event.target as HTMLSelectElement).value as IncidentCategory | '',
+    );
+  }
+
+  protected onCollabReason(event: Event): void {
+    this.collabReason.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  protected submitCollaboration(): void {
+    const category = this.collabCategory();
+    const reason = this.collabReason().trim();
+
+    if (!category) {
+      this.toast.show('Elige la especialidad a la que pides apoyo.');
+      return;
+    }
+
+    if (!reason) {
+      this.toast.show('Describe la razón de la colaboración.');
+      return;
+    }
+
+    if (this.collabSaving()) {
+      return;
+    }
+
+    this.collabSaving.set(true);
+
+    this.api.requestCollaboration(this.folio, { category, reason }).subscribe({
+      next: () => {
+        this.collabSaving.set(false);
+        this.collabCategory.set('');
+        this.collabReason.set('');
+        this.toast.show('Colaboración solicitada');
+        this.loadCollaborations();
+        this.loadUnifiedHistory();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.collabSaving.set(false);
+        this.toast.show(this.errorMessage(err));
+      },
+    });
+  }
+
+  protected setCollaborationStatus(
+    collaboration: ApiCollaboration,
+    statusValue: CollaborationStatus,
+  ): void {
+    if (this.collabSaving()) {
+      return;
+    }
+
+    this.collabSaving.set(true);
+
+    this.api.updateCollaborationStatus(collaboration.id, statusValue).subscribe({
+      next: () => {
+        this.collabSaving.set(false);
+        this.toast.show('Colaboración actualizada');
+        this.loadCollaborations();
+        this.loadUnifiedHistory();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.collabSaving.set(false);
+        this.toast.show(this.errorMessage(err));
+      },
+    });
+  }
+
+  protected collabStatusLabel(statusValue: CollaborationStatus): string {
+    switch (statusValue) {
+      case 'solicitada':
+        return 'Solicitada';
+      case 'aceptada':
+        return 'Aceptada';
+      case 'completada':
+        return 'Completada';
+      case 'rechazada':
+        return 'Rechazada';
+    }
+  }
+
+  /* =======================================================
+     HU-18 — HISTORIAL UNIFICADO
+     ======================================================= */
+
+  private loadUnifiedHistory(): void {
+    this.historyLoading.set(true);
+
+    this.api.getHistory(this.folio).subscribe({
+      next: (rows) => {
+        this.history.set(rows);
+        this.historyLoading.set(false);
+      },
+      error: () => {
+        // Respaldo: construye el historial con los eventos de estado y
+        // asignaciones ya cargados si el endpoint unificado no responde.
+        this.history.set(this.fallbackHistory());
+        this.historyLoading.set(false);
+      },
+    });
+  }
+
+  private fallbackHistory(): ApiHistoryEntry[] {
+    const entries: ApiHistoryEntry[] = [];
+
+    for (const event of this.events()) {
+      entries.push({
+        type: 'estado',
+        timestamp: event.createdAt,
+        actorId: event.actorId,
+        actorName: this.personName(event.actorId),
+        summary: `${this.personName(event.actorId)} cambió el estado de ${statusLabel(event.fromStatus)} a ${statusLabel(event.toStatus)}${event.comment ? `: ${event.comment}` : ''}`,
+      });
+    }
+
+    for (const row of this.assignments()) {
+      entries.push({
+        type: 'asignacion',
+        timestamp: row.assignedAt,
+        actorId: row.assignedById,
+        actorName: this.personName(row.assignedById),
+        summary: `${this.personName(row.assignedById)} asignó la incidencia a ${this.personName(row.assigneeId)}`,
+      });
+    }
+
+    return entries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  }
+
+  protected historyTypeLabel(type: string): string {
+    switch (type) {
+      case 'creacion':
+        return 'Creación';
+      case 'estado':
+        return 'Estado';
+      case 'asignacion':
+        return 'Asignación';
+      case 'comentario':
+        return 'Comentario';
+      case 'diagnostico':
+        return 'Diagnóstico';
+      case 'actividad':
+        return 'Bitácora';
+      case 'evidencia':
+        return 'Evidencia';
+      case 'colaboracion':
+        return 'Colaboración';
+      default:
+        return 'Evento';
+    }
+  }
+
+  /* =======================================================
+     PARTICIPANTES (para menciones HU-14)
+     ======================================================= */
+
+  private loadParticipants(): void {
+    this.api.listParticipants(this.folio).subscribe({
+      next: (rows) => this.participants.set(rows),
+      error: () => this.fallbackParticipants(),
+    });
+  }
+
+  private fallbackParticipants(): void {
+    const map = new Map<number, string>();
+    const item = this.report();
+
+    if (item) {
+      map.set(Number(item.authorId), item.author?.name ?? this.personName(item.authorId));
+      if (item.assigneeId) {
+        map.set(Number(item.assigneeId), this.personName(item.assigneeId));
+      }
+    }
+
+    for (const c of this.comments()) {
+      map.set(Number(c.userId), c.author?.name ?? this.personName(c.userId));
+    }
+
+    this.participants.set(
+      [...map.entries()].map(([id, name]) => ({ id, name })),
+    );
+  }
+
+  protected initialOf(name: string): string {
+    const trimmed = (name ?? '').trim();
+    return trimmed ? trimmed.charAt(0).toUpperCase() : 'U';
+  }
+
+  /* =======================================================
      OPERACIONES GENERALES DEL WORKFLOW
      ======================================================= */
 
@@ -1283,6 +1821,8 @@ export class ReportDetail implements OnInit, OnDestroy {
 
 
           this.loadHistory();
+
+          this.loadUnifiedHistory();
 
         },
 

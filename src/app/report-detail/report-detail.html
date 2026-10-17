@@ -1,8 +1,6 @@
 @if (loading()) {
 
-  <p class="loading">
-    Cargando reporte…
-  </p>
+  <app-spinner label="Cargando reporte…" />
 
 } @else if (report(); as view) {
 
@@ -198,9 +196,7 @@
 
       @if (diagnosisLoading()) {
 
-        <p class="technical-empty">
-          Cargando diagnóstico…
-        </p>
+        <app-spinner label="Cargando diagnóstico…" />
 
       } @else if (diagnosis(); as item) {
 
@@ -376,9 +372,7 @@
 
       @if (workLogsLoading()) {
 
-        <p class="technical-empty">
-          Cargando actividades…
-        </p>
+        <app-spinner label="Cargando actividades…" />
 
       } @else {
 
@@ -561,6 +555,286 @@
 
           </form>
 
+        }
+
+      }
+
+    </section>
+
+
+    <!-- =====================================================
+         HU-17 — EVIDENCIAS
+         ===================================================== -->
+
+    <hr class="rule" />
+
+    <section class="technical-section">
+
+      <div class="technical-heading">
+        <div>
+          <p class="technical-kicker">HU-17</p>
+          <h2>Evidencias</h2>
+        </div>
+      </div>
+
+      @if (evidencesLoading()) {
+        <app-spinner label="Cargando evidencias…" />
+      } @else {
+
+        @if (evidences().length) {
+          <div class="evidence-grid">
+            @for (item of evidences(); track item.id) {
+              <figure class="evidence-card">
+
+                @if (isPdf(item.fileUrl)) {
+                  <a
+                    class="evidence-doc"
+                    [href]="item.fileUrl"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    📄 Ver documento PDF
+                  </a>
+                } @else {
+                  <a [href]="item.fileUrl" target="_blank" rel="noopener">
+                    <img
+                      [src]="item.fileUrl"
+                      [alt]="item.caption || 'Evidencia del reporte'"
+                      loading="lazy"
+                    />
+                  </a>
+                }
+
+                <figcaption>
+                  <span class="stage-chip stage-{{ item.stage || 'ninguna' }}">
+                    {{ stageLabel(item.stage) }}
+                  </span>
+
+                  @if (item.caption) {
+                    <p class="evidence-caption">{{ item.caption }}</p>
+                  }
+
+                  <div class="technical-meta">
+                    <span>{{ item.uploader.name }}</span>
+                    <span>{{ formatDate(item.createdAt) | date: 'short' }}</span>
+                  </div>
+                </figcaption>
+
+              </figure>
+            }
+          </div>
+        } @else {
+          <p class="technical-empty">
+            Todavía no hay evidencias adjuntas.
+          </p>
+        }
+
+        @if (canAddEvidence()) {
+          <form
+            class="technical-form evidence-form"
+            (submit)="$event.preventDefault(); submitEvidence()"
+          >
+            <h3>Adjuntar evidencia</h3>
+
+            <label>
+              Fotografía o documento (JPEG, PNG, WEBP, GIF o PDF)
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                (change)="onEvidenceFile($event)"
+                [disabled]="evidenceSaving()"
+              />
+            </label>
+
+            <label>
+              Etapa
+              <select
+                [value]="evidenceStage()"
+                (change)="onEvidenceStage($event)"
+                [disabled]="evidenceSaving()"
+              >
+                <option value="">Sin etapa</option>
+                <option value="antes">Antes</option>
+                <option value="durante">Durante</option>
+                <option value="despues">Después</option>
+              </select>
+            </label>
+
+            <label>
+              Descripción (opcional)
+              <input
+                type="text"
+                maxlength="500"
+                placeholder="Ej. Fotografía de la fuga antes de la reparación"
+                [value]="evidenceCaption()"
+                (input)="onEvidenceCaption($event)"
+                [disabled]="evidenceSaving()"
+              />
+            </label>
+
+            <div class="technical-actions">
+              <button
+                class="primary"
+                type="submit"
+                [disabled]="evidenceSaving() || !evidenceFile()"
+              >
+                @if (evidenceSaving()) {
+                  Subiendo…
+                } @else {
+                  Adjuntar evidencia
+                }
+              </button>
+            </div>
+          </form>
+        }
+
+      }
+
+    </section>
+
+
+    <!-- =====================================================
+         HU-16 — COLABORACIÓN ENTRE ÁREAS
+         ===================================================== -->
+
+    <hr class="rule" />
+
+    <section class="technical-section">
+
+      <div class="technical-heading">
+        <div>
+          <p class="technical-kicker">HU-16</p>
+          <h2>Colaboración entre áreas</h2>
+        </div>
+      </div>
+
+      @if (collaborationsLoading()) {
+        <app-spinner label="Cargando colaboraciones…" />
+      } @else {
+
+        @if (collaborations().length) {
+          <div class="collab-list">
+            @for (item of collaborations(); track item.id) {
+              <article class="collab-card">
+
+                <div class="collab-top">
+                  <strong>
+                    {{ item.fromSpecialty?.name || 'Sin especialidad' }}
+                    →
+                    {{ item.toSpecialty.name }}
+                  </strong>
+
+                  <span class="collab-chip collab-{{ item.status }}">
+                    {{ collabStatusLabel(item.status) }}
+                  </span>
+                </div>
+
+                <p class="collab-reason">{{ item.reason }}</p>
+
+                <div class="technical-meta">
+                  <span>
+                    Solicitada por
+                    <strong>{{ item.requestedBy.name }}</strong>
+                  </span>
+                  <span>{{ formatDate(item.createdAt) | date: 'short' }}</span>
+                </div>
+
+                @if (canManageCollaborations()) {
+                  <div class="collab-actions">
+                    @if (item.status === 'solicitada') {
+                      <button
+                        type="button"
+                        class="primary"
+                        (click)="setCollaborationStatus(item, 'aceptada')"
+                        [disabled]="collabSaving()"
+                      >
+                        Aceptar
+                      </button>
+                      <button
+                        type="button"
+                        class="ghost"
+                        (click)="setCollaborationStatus(item, 'rechazada')"
+                        [disabled]="collabSaving()"
+                      >
+                        Rechazar
+                      </button>
+                    }
+                    @if (item.status === 'aceptada') {
+                      <button
+                        type="button"
+                        class="primary"
+                        (click)="setCollaborationStatus(item, 'completada')"
+                        [disabled]="collabSaving()"
+                      >
+                        Marcar completada
+                      </button>
+                      <button
+                        type="button"
+                        class="ghost"
+                        (click)="setCollaborationStatus(item, 'rechazada')"
+                        [disabled]="collabSaving()"
+                      >
+                        Rechazar
+                      </button>
+                    }
+                  </div>
+                }
+
+              </article>
+            }
+          </div>
+        } @else {
+          <p class="technical-empty">
+            No se ha solicitado colaboración de otras áreas.
+          </p>
+        }
+
+        @if (canRequestCollaboration()) {
+          <form
+            class="technical-form collab-form"
+            (submit)="$event.preventDefault(); submitCollaboration()"
+          >
+            <h3>Solicitar apoyo de otra especialidad</h3>
+
+            <label>
+              Especialidad
+              <select
+                [value]="collabCategory()"
+                (change)="onCollabCategory($event)"
+                [disabled]="collabSaving()"
+              >
+                <option value="">Selecciona</option>
+                @for (item of collabSpecialtyOptions(); track item.id) {
+                  <option [value]="item.category">{{ item.name }}</option>
+                }
+              </select>
+            </label>
+
+            <label>
+              Razón de la colaboración
+              <textarea
+                rows="3"
+                placeholder="Ej. El diagnóstico indica un problema eléctrico, no del proyector"
+                [value]="collabReason()"
+                (input)="onCollabReason($event)"
+                [disabled]="collabSaving()"
+              ></textarea>
+            </label>
+
+            <div class="technical-actions">
+              <button
+                class="primary"
+                type="submit"
+                [disabled]="collabSaving() || !collabCategory() || !collabReason().trim()"
+              >
+                @if (collabSaving()) {
+                  Enviando…
+                } @else {
+                  Solicitar colaboración
+                }
+              </button>
+            </div>
+          </form>
         }
 
       }
@@ -866,127 +1140,91 @@
     }
 
     <!-- =====================================================
-         HISTORIAL DE ASIGNACIONES
-         ===================================================== -->
-    @if (assignments().length) {
-
-      <hr class="rule" />
-
-
-      <section class="history">
-
-        <h2>
-          Asignaciones
-        </h2>
-
-
-        <ul>
-
-          @for (
-            row of assignments();
-            track row.id
-          ) {
-
-            <li>
-
-              <strong>
-                {{ personName(row.assigneeId) }}
-              </strong>
-
-              <span>
-
-                por
-                {{ personName(row.assignedById) }}
-                ·
-                {{ formatDate(row.assignedAt) | date: 'short' }}
-
-              </span>
-
-            </li>
-
-          }
-
-        </ul>
-
-      </section>
-
-    }
-
-
-    <!-- =====================================================
-         HISTORIAL DE ESTADOS
+         HU-18 — HISTORIAL UNIFICADO DE LA INCIDENCIA
          ===================================================== -->
 
-    @if (events().length) {
+    <hr class="rule" />
 
-      <hr class="rule" />
+    <section class="history technical-section">
 
+      <div class="technical-heading">
+        <div>
+          <p class="technical-kicker">HU-18</p>
+          <h2>Historial</h2>
+        </div>
+      </div>
 
-      <section class="history">
+      @if (historyLoading()) {
+        <app-spinner label="Cargando historial…" />
+      } @else if (history().length) {
 
-        <h2>
-          Estados
-        </h2>
+        <ol class="history-timeline">
+          @for (entry of history(); track $index) {
+            <li class="history-item history-type-{{ entry.type }}">
 
-
-        <ul>
-
-          @for (
-            row of events();
-            track row.id
-          ) {
-
-            <li>
-
-              <strong>
-
-                {{ statusLabel(row.fromStatus) }}
-                →
-                {{ statusLabel(row.toStatus) }}
-
-              </strong>
-
-
-              <span>
-
-                {{ personName(row.actorId) }}
-                ·
-                {{ formatDate(row.createdAt) | date: 'short' }}
-
+              <span class="history-badge">
+                {{ historyTypeLabel(entry.type) }}
               </span>
-              @if (row.comment) {
 
-                <em>
-                  {{ row.comment }}
-                </em>
+              <div class="history-body">
+                <p class="history-summary">{{ entry.summary }}</p>
 
-              }
+                <span class="history-meta">
+                  {{ entry.actorName }}
+                  ·
+                  {{ formatDate(entry.timestamp) | date: 'short' }}
+                </span>
+              </div>
 
             </li>
-
           }
+        </ol>
 
-        </ul>
+      } @else {
+        <p class="technical-empty">
+          Aún no hay movimientos registrados en esta incidencia.
+        </p>
+      }
 
-      </section>
-
-    }
+    </section>
 
     <!-- SECCIÓN DE COMENTARIOS -->
     <hr class="rule" />
     <section class="comments-section">
       <h2 class="section-title">Comentarios</h2>
 
-      <!-- Caja para escribir comentario -->
+      <!-- Caja para escribir comentario (con menciones HU-14) -->
       <div class="comment-box">
-        <textarea
-          rows="3"
-          class="comment-textarea"
-          [value]="newCommentText()"
-          (input)="onNewCommentInput($event)"
-          [disabled]="busy()"
-          placeholder="Escribe un comentario sobre este reporte...">
-        </textarea>
+        <div class="mention-anchor">
+          <textarea
+            rows="3"
+            class="comment-textarea"
+            [value]="newCommentText()"
+            (input)="onNewCommentInput($event)"
+            (blur)="closeMentions()"
+            [disabled]="busy()"
+            placeholder="Escribe un comentario… usa @ para mencionar a un participante">
+          </textarea>
+
+          @if (mentionQuery() !== null && mentionCandidates().length) {
+            <ul class="mention-dropdown" role="listbox">
+              @for (person of mentionCandidates(); track person.id) {
+                <li>
+                  <!-- mousedown para ganar al blur del textarea -->
+                  <button
+                    type="button"
+                    role="option"
+                    (mousedown)="$event.preventDefault(); insertMention(person)"
+                  >
+                    <span class="mention-avatar">{{ initialOf(person.name) }}</span>
+                    {{ person.name }}
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+
         <div class="comment-box-actions">
           <button type="button" class="btn-primary-custom" (click)="addComment()" [disabled]="busy() || !newCommentText().trim()">
             Publicar Comentario
@@ -1003,11 +1241,11 @@
               <div class="comment-header">
                 <div class="user-info">
                   <div class="user-avatar">
-                    {{ personInitial(c.user_id) }}
+                    {{ initialOf(c.author.name) }}
                   </div>
                   <div class="user-details">
-                    <span class="user-name">{{ personName(c.user_id) }}</span>
-                    <span class="comment-date">{{ formatDate(c.created_at) | date: 'MMM d, y, h:mm a' }}</span>
+                    <span class="user-name">{{ c.author.name }}</span>
+                    <span class="comment-date">{{ formatDate(c.createdAt) | date: 'MMM d, y, h:mm a' }}</span>
                   </div>
                 </div>
 
@@ -1034,7 +1272,15 @@
 
               <!-- Contenido del Comentario o Formulario de Edición -->
               @if (editingCommentId() !== c.id) {
-                <p class="comment-body">{{ c.content }}</p>
+                <p class="comment-body">
+                  @for (segment of commentSegments(c); track $index) {
+                    @if (segment.mention) {
+                      <span class="mention-tag">{{ segment.text }}</span>
+                    } @else {
+                      {{ segment.text }}
+                    }
+                  }
+                </p>
               } @else {
                 <div class="edit-box">
                   <textarea
