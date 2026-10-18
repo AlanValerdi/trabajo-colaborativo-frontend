@@ -205,6 +205,33 @@ export class Home implements OnInit {
     this.reports().filter((item) => item.assigneeId === this.auth.currentUser()?.id),
   );
 
+  /**
+   * HU-21: alcance del panel de actividad según el rol activo.
+   * Reportante solo ve la actividad de sus reportes; el técnico la de los
+   * asignados a él (o propios); los roles de supervisión ven el feed global.
+   */
+  protected readonly activityFolios = computed<string[] | null>(() => {
+    const slug = this.roleSlug();
+    const userId = Number(this.auth.currentUser()?.id);
+
+    if (slug === 'reportante') {
+      return this.reports()
+        .filter((item) => Number(item.authorId) === userId)
+        .map((item) => item.folio);
+    }
+
+    if (slug === 'tecnico') {
+      return this.reports()
+        .filter(
+          (item) =>
+            Number(item.assigneeId) === userId || Number(item.authorId) === userId,
+        )
+        .map((item) => item.folio);
+    }
+
+    return null;
+  });
+
   constructor() {
     this.form.controls.facultyId.disable({ emitEvent: false });
     this.form.controls.locationId.disable({ emitEvent: false });
