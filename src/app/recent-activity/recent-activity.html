@@ -1,7 +1,7 @@
 <section class="activity-panel">
 
   <div class="activity-head">
-    <h2>Actividad reciente</h2>
+    <h2>{{ title() }}</h2>
 
     <div class="activity-head-actions">
       <button
@@ -33,14 +33,14 @@
       <p class="activity-empty">
         No se pudo cargar la actividad reciente.
       </p>
-    } @else if (items().length === 0) {
+    } @else if (visibleItems().length === 0) {
       <p class="activity-empty">
-        Aún no hay actividad registrada.
+        {{ emptyText() }}
       </p>
     } @else {
 
       <ul class="activity-list">
-        @for (item of items(); track $index) {
+        @for (item of visibleItems(); track $index) {
           <li class="activity-item">
 
             <span class="activity-badge activity-type-{{ item.type }}">
