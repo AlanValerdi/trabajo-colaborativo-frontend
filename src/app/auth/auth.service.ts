@@ -10,6 +10,7 @@ import {
   shareReplay,
   tap,
   throwError,
+  switchMap,
 } from 'rxjs';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
@@ -53,12 +54,12 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/auth/register`, data);
   }
 
-  login(data: unknown): Observable<TokenResponse> {
+  login(data: unknown): Observable<UserProfile> {
     return this.http.post<TokenResponse>(`${this.apiUrl}/auth/login`, data).pipe(
       tap((response: TokenResponse) => {
         this.setTokens(response);
-        this.loadProfile().subscribe();
       }),
+      switchMap(() => this.loadProfile())
     );
   }
 

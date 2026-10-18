@@ -1,4 +1,13 @@
-import { afterNextRender, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  DestroyRef,
+  ElementRef,
+  HostListener,
+  inject,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
@@ -10,17 +19,33 @@ import { RoleSlug } from '../data/models';
 import { HomeSearchService } from '../session/home-search.service';
 import {
   LucideChevronDown,
+  LucideClipboardCheck,
   LucideClipboardList,
+  LucideFileText,
   LucideHouse,
   LucideLogOut,
+  LucideNetwork,
   LucidePanelLeft,
+  LucideSettings,
+  LucideShieldCheck,
   LucideUsers,
+  LucideWrench,
 } from '@lucide/angular';
 import { Confirm } from '../ui/confirm/confirm';
 import { Toast } from '../ui/toast/toast';
 
 const MOBILE_QUERY = '(max-width: 860px)';
 const SEARCH_MOBILE_QUERY = '(max-width: 700px)';
+
+/** Colores por rol — solo para presentación, no toca models.ts */
+const ROLE_COLORS: Record<RoleSlug, string> = {
+  reportante:    '#10B981',
+  tecnico:       '#3B82F6',
+  responsable:   '#F59E0B',
+  coordinador:   '#8B5CF6',
+  validador:     '#06B6D4',
+  administrador: '#EF4444',
+};
 
 @Component({
   selector: 'app-shell',
@@ -34,6 +59,12 @@ const SEARCH_MOBILE_QUERY = '(max-width: 700px)';
     LucidePanelLeft,
     LucideClipboardList,
     LucideChevronDown,
+    LucideFileText,
+    LucideWrench,
+    LucideClipboardCheck,
+    LucideNetwork,
+    LucideShieldCheck,
+    LucideSettings,
     Toast,
     Confirm,
   ],
@@ -47,6 +78,7 @@ export class Shell {
   protected readonly crumbs = inject(BreadcrumbService);
   protected readonly authService = inject(AuthService);
   protected readonly homeSearch = inject(HomeSearchService);
+  private readonly elementRef = inject(ElementRef);
 
   protected readonly collapsed = signal(false);
   protected readonly mobileOpen = signal(false);
@@ -57,6 +89,16 @@ export class Shell {
   protected readonly availableRoles = this.roles.availableRoles;
   protected readonly currentUser = this.authService.currentUser;
   protected readonly searchQuery = this.homeSearch.query;
+
+  /** Color hex del rol activo, para pasarlo como CSS var al template */
+  protected readonly activeRoleColor = computed(
+    () => ROLE_COLORS[this.currentRole().slug] ?? '#3B82F6',
+  );
+
+  /** Color hex de cualquier rol por slug (para el menú) */
+  protected roleColor(slug: RoleSlug): string {
+    return ROLE_COLORS[slug] ?? '#3B82F6';
+  }
 
   private readonly currentUrl = toSignal(
     this.router.events.pipe(
@@ -145,6 +187,24 @@ export class Shell {
   protected selectRole(slug: RoleSlug): void {
     this.roles.setRole(slug);
     this.roleMenuOpen.set(false);
+    this.router.navigate(['/inicio']);
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClick(event: MouseEvent): void {
+    if (!this.roleMenuOpen()) return;
+    const target = event.target as HTMLElement | null;
+    const brandWrap = (this.elementRef.nativeElement as HTMLElement).querySelector('.brand-wrap');
+    if (brandWrap && !brandWrap.contains(target)) {
+      this.roleMenuOpen.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    if (this.roleMenuOpen()) {
+      this.roleMenuOpen.set(false);
+    }
   }
 
   protected logout(): void {

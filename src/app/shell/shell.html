@@ -3,6 +3,7 @@
   [class.shell-collapsed]="collapsed()"
   [class.shell-drawer-open]="mobileOpen()"
   [class.shell-role-menu-open]="roleMenuOpen()"
+  [style.--role-color]="activeRoleColor()"
 >
   @if (mobileOpen()) {
     <button
@@ -35,7 +36,21 @@
           [class.single-role]="availableRoles().length <= 1"
         >
           <span class="brand-mark" aria-hidden="true">
-            <svg lucideClipboardList></svg>
+            @if (showSidebarLabels()) {
+              <!-- Expandido: siempre muestra el clipboard de la plataforma -->
+              <svg lucideClipboardList></svg>
+            } @else {
+              <!-- Colapsado: ícono del rol activo via @switch -->
+              @switch (currentRole().slug) {
+                @case ('reportante')    { <svg lucideFileText></svg> }
+                @case ('tecnico')       { <svg lucideWrench></svg> }
+                @case ('responsable')   { <svg lucideClipboardCheck></svg> }
+                @case ('coordinador')   { <svg lucideNetwork></svg> }
+                @case ('validador')     { <svg lucideShieldCheck></svg> }
+                @case ('administrador') { <svg lucideSettings></svg> }
+                @default                { <svg lucideClipboardList></svg> }
+              }
+            }
           </span>
           @if (showSidebarLabels()) {
             <span class="brand-copy">
@@ -55,10 +70,24 @@
                 type="button"
                 class="role-option"
                 [class.active]="role.slug === currentRole().slug"
+                [style.--option-color]="roleColor(role.slug)"
                 (click)="selectRole(role.slug)"
               >
-                <strong>{{ role.name }}</strong>
-                <span>{{ role.description }}</span>
+                <span class="role-option-icon" aria-hidden="true">
+                  @switch (role.slug) {
+                    @case ('reportante')    { <svg lucideFileText></svg> }
+                    @case ('tecnico')       { <svg lucideWrench></svg> }
+                    @case ('responsable')   { <svg lucideClipboardCheck></svg> }
+                    @case ('coordinador')   { <svg lucideNetwork></svg> }
+                    @case ('validador')     { <svg lucideShieldCheck></svg> }
+                    @case ('administrador') { <svg lucideSettings></svg> }
+                    @default                { <svg lucideClipboardList></svg> }
+                  }
+                </span>
+                <span class="role-option-body">
+                  <strong>{{ role.name }}</strong>
+                  <span>{{ role.description }}</span>
+                </span>
               </button>
             }
           </div>
@@ -96,7 +125,20 @@
                 {{ currentUser()?.name }}
               }
             </span>
-            <span class="user-role">rol: {{ currentRole().name }}</span>
+            <span class="role-badge">
+              <span class="role-badge-icon" aria-hidden="true">
+                @switch (currentRole().slug) {
+                  @case ('reportante')    { <svg lucideFileText></svg> }
+                  @case ('tecnico')       { <svg lucideWrench></svg> }
+                  @case ('responsable')   { <svg lucideClipboardCheck></svg> }
+                  @case ('coordinador')   { <svg lucideNetwork></svg> }
+                  @case ('validador')     { <svg lucideShieldCheck></svg> }
+                  @case ('administrador') { <svg lucideSettings></svg> }
+                  @default                { <svg lucideClipboardList></svg> }
+                }
+              </span>
+              <span class="role-badge-text">{{ currentRole().name }}</span>
+            </span>
           </span>
         }
       </div>

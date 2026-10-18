@@ -591,7 +591,7 @@ export class ReportDetail implements OnInit, OnDestroy {
         const known = JSON.parse(localStorage.getItem('known_user_names') || '{}');
         known[Number(currentUser.id)] = currentUser.name;
         localStorage.setItem('known_user_names', JSON.stringify(known));
-      } catch {}
+      } catch { }
     }
 
     this.usersApi.list().subscribe({
@@ -599,14 +599,14 @@ export class ReportDetail implements OnInit, OnDestroy {
         let known: Record<number, string> = {};
         try {
           known = JSON.parse(localStorage.getItem('known_user_names') || '{}');
-        } catch {}
+        } catch { }
 
         for (const user of users) {
           known[Number(user.id)] = user.name;
         }
         try {
           localStorage.setItem('known_user_names', JSON.stringify(known));
-        } catch {}
+        } catch { }
 
         this.names.set(known);
         this.technicians.set(users.filter((user) => user.is_active && user.roles.includes('tecnico')));
@@ -616,7 +616,7 @@ export class ReportDetail implements OnInit, OnDestroy {
         let known: Record<number, string> = {};
         try {
           known = JSON.parse(localStorage.getItem('known_user_names') || '{}');
-        } catch {}
+        } catch { }
 
         this.names.set(known);
         this.technicians.set([]);
@@ -731,7 +731,7 @@ export class ReportDetail implements OnInit, OnDestroy {
     this.assigneeId.set(
 
       Number.isFinite(value) &&
-      value > 0
+        value > 0
 
         ? value
 
@@ -1885,7 +1885,7 @@ export class ReportDetail implements OnInit, OnDestroy {
           .map(
             (item) =>
               typeof item?.msg ===
-              'string'
+                'string'
 
                 ? item.msg
 
