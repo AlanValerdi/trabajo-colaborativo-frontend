@@ -7,8 +7,8 @@
       <button class="primary" type="button" (click)="loadReports()">Reintentar</button>
     </div>
   } @else {
-    <!-- HU-21 — Actividad reciente (awareness del equipo) -->
-    <app-recent-activity />
+    <!-- HU-21 — Actividad reciente (awareness del equipo, acotada por rol) -->
+    <app-recent-activity [folios]="activityFolios()" />
 
     @switch (roleSlug()) {
       @case ('reportante') {

@@ -527,9 +527,13 @@ export class ReportDetail implements OnInit, OnDestroy {
   });
 
 
+  /*
+   * Aceptar/rechazar/completar una colaboración es decisión del área que
+   * recibe la solicitud: responsable, coordinador o administrador.
+   * El técnico asignado solo puede SOLICITARLA, no resolverla.
+   */
   protected readonly canManageCollaborations = computed(() =>
 
-    this.isAssignee() ||
     this.isRole(
       'responsable',
       'coordinador',
@@ -1030,16 +1034,20 @@ export class ReportDetail implements OnInit, OnDestroy {
     return Number(c.userId) === Number(user.id);
   }
 
-  /* Eliminación para el autor O administradores de la plataforma */
+  /*
+   * Eliminación solo para el autor del comentario o para quien está
+   * usando el rol ACTIVO de administrador. No basta con tener el rol
+   * asignado: un usuario multi-rol navegando como reportante no debe
+   * poder borrar comentarios ajenos.
+   */
   protected canDeleteComment(c: ApiComment): boolean {
     const user = this.auth.currentUser();
     if (!user) return false;
 
     const isOwner = Number(c.userId) === Number(user.id);
-    const currentSlug = this.role();
-    const isAdmin = currentSlug === 'administrador' || user.roles?.includes('administrador');
+    const isActiveAdmin = this.role() === 'administrador';
 
-    return isOwner || isAdmin;
+    return isOwner || isActiveAdmin;
   }
 
   protected move(
