@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import {
@@ -8,10 +8,16 @@ import {
 } from '../data/reports-api.service';
 import { Spinner } from '../ui/spinner/spinner';
 
+const DISPLAY_LIMIT = 15;
+
 /**
  * HU-21 — Actividad reciente.
- * Feed global de cambios (estados, comentarios, asignaciones,
- * evidencias, colaboraciones) para mantener awareness del equipo.
+ * Feed de cambios (estados, comentarios, asignaciones, evidencias,
+ * colaboraciones) para mantener awareness del equipo.
+ *
+ * Con `folios` se acota el feed a ciertos reportes: un reportante solo ve
+ * la actividad de sus reportes y un técnico la de los que tiene asignados;
+ * `null` muestra el feed global (roles de supervisión).
  */
 @Component({
   selector: 'app-recent-activity',
@@ -22,10 +28,34 @@ import { Spinner } from '../ui/spinner/spinner';
 export class RecentActivity implements OnInit {
   private readonly api = inject(ReportsApiService);
 
+  /** Folios visibles para el usuario actual; null = sin filtro (feed global). */
+  readonly folios = input<string[] | null>(null);
+
   protected readonly items = signal<ApiActivityEntry[]>([]);
   protected readonly loading = signal(true);
   protected readonly loadError = signal(false);
   protected readonly expanded = signal(true);
+
+  protected readonly visibleItems = computed(() => {
+    const allowed = this.folios();
+    const rows =
+      allowed === null
+        ? this.items()
+        : this.items().filter((item) => allowed.includes(item.reportFolio));
+    return rows.slice(0, DISPLAY_LIMIT);
+  });
+
+  protected readonly scoped = computed(() => this.folios() !== null);
+
+  protected readonly title = computed(() =>
+    this.scoped() ? 'Actividad de tus reportes' : 'Actividad reciente',
+  );
+
+  protected readonly emptyText = computed(() =>
+    this.scoped()
+      ? 'Aún no hay actividad en tus reportes.'
+      : 'Aún no hay actividad registrada.',
+  );
 
   ngOnInit(): void {
     this.load();
@@ -35,7 +65,9 @@ export class RecentActivity implements OnInit {
     this.loading.set(true);
     this.loadError.set(false);
 
-    this.api.recentActivity(15).subscribe({
+    // Se piden más entradas de las que se muestran para que el filtrado
+    // por folio siga teniendo material suficiente.
+    this.api.recentActivity(50).subscribe({
       next: (rows) => {
         this.items.set(rows);
         this.loading.set(false);

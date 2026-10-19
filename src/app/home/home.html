@@ -7,8 +7,8 @@
       <button class="primary" type="button" (click)="loadReports()">Reintentar</button>
     </div>
   } @else {
-    <!-- HU-21 — Actividad reciente (awareness del equipo) -->
-    <app-recent-activity />
+    <!-- HU-21 — Actividad reciente (awareness del equipo, acotada por rol) -->
+    <app-recent-activity [folios]="activityFolios()" />
 
     @switch (roleSlug()) {
       @case ('reportante') {
@@ -27,10 +27,18 @@
         </div>
 
         @if (ownReports().length === 0 && !searchQuery()) {
-          <div class="empty-state">
-            <h2>Empieza a generar tu reporte</h2>
-            <p>Aún no tienes reportes. Crea el primero para dar seguimiento a una incidencia.</p>
-            <button class="primary" type="button" (click)="openDialog()">Crear reporte</button>
+          <div class="empty-state animated-empty-state">
+            <div class="empty-icon-wrap">
+              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+            </div>
+            <h2>Aún no tienes reportes</h2>
+            <p>Empieza a generar tu primer reporte para dar seguimiento a una incidencia.</p>
+            <ul class="empty-instructions">
+              <li>Haz clic en <strong>Crear reporte</strong>.</li>
+              <li>Describe la incidencia y su ubicación.</li>
+              <li>Da seguimiento desde esta pantalla.</li>
+            </ul>
+            <button class="primary pulse-btn" type="button" (click)="openDialog()">Crear mi primer reporte</button>
           </div>
         } @else if (filteredOwnReports().length === 0) {
           <div class="empty-state">
@@ -665,3 +673,53 @@
     </div>
   </app-dialog>
 }
+
+<app-dialog
+  [open]="showWelcomeTutorial()"
+  title="Bienvenido a Reportes"
+  titleId="welcome-title"
+  (closed)="finishTutorial()"
+>
+  <div class="dialog-body tutorial-body">
+    <div class="tutorial-carousel" [style.transform]="'translateX(-' + ((tutorialStep() - 1) * 100) + '%)'">
+      <div class="tutorial-slide">
+        <div class="slide-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        </div>
+        <h3>Paso 1: Identifica el problema</h3>
+        <p>Usa esta plataforma para reportar cualquier incidencia de infraestructura, equipo o servicios en tu facultad. Todo en un solo lugar.</p>
+      </div>
+
+      <div class="tutorial-slide">
+        <div class="slide-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+        </div>
+        <h3>Paso 2: Crea tu reporte</h3>
+        <p>Haz clic en el botón <strong>Nuevo Reporte</strong>, describe el problema, selecciona la ubicación exacta y sube una foto si es necesario.</p>
+      </div>
+
+      <div class="tutorial-slide">
+        <div class="slide-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+        <h3>Paso 3: Sigue el estado</h3>
+        <p>Nosotros nos encargamos del resto. Podrás ver el estatus de tu reporte en tiempo real desde tu pantalla de inicio.</p>
+      </div>
+    </div>
+  </div>
+  
+  <div dialog-actions class="dialog-actions tutorial-actions">
+    <div class="tutorial-dots">
+      <span class="dot" [class.active]="tutorialStep() === 1"></span>
+      <span class="dot" [class.active]="tutorialStep() === 2"></span>
+      <span class="dot" [class.active]="tutorialStep() === 3"></span>
+    </div>
+    <div class="tutorial-btns">
+      @if (tutorialStep() < 3) {
+        <button type="button" class="primary" (click)="nextTutorialStep()">Siguiente</button>
+      } @else {
+        <button type="button" class="primary" (click)="finishTutorial()">¡Entendido, empezar!</button>
+      }
+    </div>
+  </div>
+</app-dialog>

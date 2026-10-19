@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth/auth.service';
@@ -17,21 +17,33 @@ export class Login {
   private readonly authService = inject(AuthService);
 
   public errorMessage = '';
+  protected readonly submitting = signal(false);
 
   protected readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required]],
   });
 
+  protected onEnter(event: Event): void {
+    event.preventDefault();
+    this.onSubmit();
+  }
+
   protected onSubmit(): void {
+    if (this.submitting()) {
+      return;
+    }
     this.form.markAllAsTouched();
     if (this.form.valid) {
+      this.submitting.set(true);
+      this.errorMessage = '';
       this.authService.login(this.form.value).subscribe({
         next: () => {
           void this.router.navigateByUrl('/inicio');
         },
         error: (err) => {
           this.errorMessage = err.error?.detail || 'Error al iniciar sesión';
+          this.submitting.set(false);
           console.error('Login error', err);
         }
       });

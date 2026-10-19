@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ReportCard } from '../report-card/report-card';
@@ -63,7 +63,7 @@ type CatalogDialogMode = 'create' | 'edit';
   templateUrl: './home.html',
   styleUrl: './home.css',
 })
-export class Home implements OnInit {
+export class Home {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(ReportsApiService);
   private readonly catalogApi = inject(CatalogApiService);
@@ -114,6 +114,9 @@ export class Home implements OnInit {
   protected readonly catalogDeleteType = signal<CatalogContext>('campus');
   protected readonly catalogDeleteId = signal<number | null>(null);
   protected readonly catalogDeleteLabel = signal('');
+
+  protected readonly showWelcomeTutorial = signal(false);
+  protected readonly tutorialStep = signal(1);
 
   protected readonly reportFaculties = signal<Faculty[]>([]);
   protected readonly reportLocations = signal<Location[]>([]);
@@ -205,24 +208,76 @@ export class Home implements OnInit {
     this.reports().filter((item) => item.assigneeId === this.auth.currentUser()?.id),
   );
 
+  /**
+   * HU-21: alcance del panel de actividad según el rol activo.
+   * Reportante solo ve la actividad de sus reportes; el técnico la de los
+   * asignados a él (o propios); los roles de supervisión ven el feed global.
+   */
+  protected readonly activityFolios = computed<string[] | null>(() => {
+    const slug = this.roleSlug();
+    const userId = Number(this.auth.currentUser()?.id);
+
+    if (slug === 'reportante') {
+      return this.reports()
+        .filter((item) => Number(item.authorId) === userId)
+        .map((item) => item.folio);
+    }
+
+    if (slug === 'tecnico') {
+      return this.reports()
+        .filter(
+          (item) =>
+            Number(item.assigneeId) === userId || Number(item.authorId) === userId,
+        )
+        .map((item) => item.folio);
+    }
+
+    return null;
+  });
+
   constructor() {
     this.form.controls.facultyId.disable({ emitEvent: false });
     this.form.controls.locationId.disable({ emitEvent: false });
     this.catalogLocationForm.controls.facultyId.disable({ emitEvent: false });
+
+    // Resets page to 1 whenever the search query changes
     effect(() => {
       this.searchQuery();
       this.page.set(1);
     });
+
+    // Re-loads dashboard data automatically whenever the active role changes.
+    // This also runs on first render, replacing the need for ngOnInit.
+    effect(() => {
+      const slug = this.roleSlug();
+      this.loadReports();
+      if (slug === 'administrador') {
+        this.loadUsers();
+      }
+      if (slug === 'reportante' || slug === 'administrador') {
+        this.loadCampuses();
+      }
+      
+      if (slug === 'reportante') {
+        try {
+          if (!localStorage.getItem('has_seen_tutorial_reportante')) {
+            this.showWelcomeTutorial.set(true);
+            this.tutorialStep.set(1);
+          }
+        } catch {}
+      }
+    });
   }
 
-  ngOnInit(): void {
-    this.loadReports();
-    if (this.roleSlug() === 'administrador') {
-      this.loadUsers();
-    }
-    if (this.roleSlug() === 'reportante' || this.roleSlug() === 'administrador') {
-      this.loadCampuses();
-    }
+  protected nextTutorialStep(): void {
+    this.tutorialStep.update(s => s + 1);
+  }
+
+  protected finishTutorial(): void {
+    this.showWelcomeTutorial.set(false);
+    try {
+      localStorage.setItem('has_seen_tutorial_reportante', 'true');
+    } catch {}
   }
 
   protected setAdminContext(context: AdminContext): void {
@@ -259,7 +314,7 @@ export class Home implements OnInit {
   protected loadCampuses(): void {
     this.catalogApi.listCampuses().subscribe({
       next: (items) => this.campuses.set(items),
-      error: () => {},
+      error: () => { },
     });
   }
 
@@ -1103,5 +1158,5 @@ export class Home implements OnInit {
     this.form.controls.imageUrl.setValue('');
   }
 
-  
+
 }
