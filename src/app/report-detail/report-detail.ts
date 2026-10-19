@@ -527,9 +527,10 @@ export class ReportDetail implements OnInit, OnDestroy {
   });
 
 
-  protected readonly canManageCollaborations = computed(() =>
+  /* HU-16 — Aceptar o rechazar una colaboración solo corresponde a los roles
+     de gestión; quien la solicita no puede aceptar su propia solicitud. */
+  protected readonly canRespondCollaborations = computed(() =>
 
-    this.isAssignee() ||
     this.isRole(
       'responsable',
       'coordinador',
@@ -537,6 +538,40 @@ export class ReportDetail implements OnInit, OnDestroy {
     )
 
   );
+
+  /* Completar: técnico asignado o roles de gestión. */
+  protected readonly canCompleteCollaborations = computed(() =>
+
+    this.isAssignee() ||
+    this.canRespondCollaborations()
+
+  );
+
+  /* El solicitante puede retirar su solicitud mientras siga pendiente. */
+  protected isCollabRequester(item: ApiCollaboration): boolean {
+    return (
+      Number(item.requestedById) ===
+      Number(this.auth.currentUser()?.id)
+    );
+  }
+
+  protected hasCollabActions(item: ApiCollaboration): boolean {
+    if (item.status === 'solicitada') {
+      return (
+        this.canRespondCollaborations() ||
+        this.isCollabRequester(item)
+      );
+    }
+
+    if (item.status === 'aceptada') {
+      return (
+        this.canCompleteCollaborations() ||
+        this.canRespondCollaborations()
+      );
+    }
+
+    return false;
+  }
 
 
   protected readonly collabSpecialtyOptions = computed(() => {
