@@ -120,6 +120,7 @@ export interface ApiCollaboration {
   toSpecialty: CollaborationSpecialty;
   reason: string;
   status: CollaborationStatus;
+  respondedById: number | null;
   createdAt: string;
   updatedAt: string;
 }

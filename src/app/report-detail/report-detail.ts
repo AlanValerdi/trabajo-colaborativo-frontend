@@ -527,12 +527,9 @@ export class ReportDetail implements OnInit, OnDestroy {
   });
 
 
-  /*
-   * Aceptar/rechazar/completar una colaboración es decisión del área que
-   * recibe la solicitud: responsable, coordinador o administrador.
-   * El técnico asignado solo puede SOLICITARLA, no resolverla.
-   */
-  protected readonly canManageCollaborations = computed(() =>
+  /* HU-16 — Aceptar o rechazar una colaboración solo corresponde a los roles
+     de gestión; quien la solicita no puede aceptar su propia solicitud. */
+  protected readonly canRespondCollaborations = computed(() =>
 
     this.isRole(
       'responsable',
@@ -541,6 +538,40 @@ export class ReportDetail implements OnInit, OnDestroy {
     )
 
   );
+
+  /* Completar: técnico asignado o roles de gestión. */
+  protected readonly canCompleteCollaborations = computed(() =>
+
+    this.isAssignee() ||
+    this.canRespondCollaborations()
+
+  );
+
+  /* El solicitante puede retirar su solicitud mientras siga pendiente. */
+  protected isCollabRequester(item: ApiCollaboration): boolean {
+    return (
+      Number(item.requestedById) ===
+      Number(this.auth.currentUser()?.id)
+    );
+  }
+
+  protected hasCollabActions(item: ApiCollaboration): boolean {
+    if (item.status === 'solicitada') {
+      return (
+        this.canRespondCollaborations() ||
+        this.isCollabRequester(item)
+      );
+    }
+
+    if (item.status === 'aceptada') {
+      return (
+        this.canCompleteCollaborations() ||
+        this.canRespondCollaborations()
+      );
+    }
+
+    return false;
+  }
 
 
   protected readonly collabSpecialtyOptions = computed(() => {
@@ -591,7 +622,7 @@ export class ReportDetail implements OnInit, OnDestroy {
         const known = JSON.parse(localStorage.getItem('known_user_names') || '{}');
         known[Number(currentUser.id)] = currentUser.name;
         localStorage.setItem('known_user_names', JSON.stringify(known));
-      } catch { }
+      } catch {}
     }
 
     this.usersApi.list().subscribe({
@@ -599,14 +630,14 @@ export class ReportDetail implements OnInit, OnDestroy {
         let known: Record<number, string> = {};
         try {
           known = JSON.parse(localStorage.getItem('known_user_names') || '{}');
-        } catch { }
+        } catch {}
 
         for (const user of users) {
           known[Number(user.id)] = user.name;
         }
         try {
           localStorage.setItem('known_user_names', JSON.stringify(known));
-        } catch { }
+        } catch {}
 
         this.names.set(known);
         this.technicians.set(users.filter((user) => user.is_active && user.roles.includes('tecnico')));
@@ -616,7 +647,7 @@ export class ReportDetail implements OnInit, OnDestroy {
         let known: Record<number, string> = {};
         try {
           known = JSON.parse(localStorage.getItem('known_user_names') || '{}');
-        } catch { }
+        } catch {}
 
         this.names.set(known);
         this.technicians.set([]);
@@ -731,7 +762,7 @@ export class ReportDetail implements OnInit, OnDestroy {
     this.assigneeId.set(
 
       Number.isFinite(value) &&
-        value > 0
+      value > 0
 
         ? value
 
@@ -1034,20 +1065,16 @@ export class ReportDetail implements OnInit, OnDestroy {
     return Number(c.userId) === Number(user.id);
   }
 
-  /*
-   * Eliminación solo para el autor del comentario o para quien está
-   * usando el rol ACTIVO de administrador. No basta con tener el rol
-   * asignado: un usuario multi-rol navegando como reportante no debe
-   * poder borrar comentarios ajenos.
-   */
+  /* Eliminación para el autor O administradores de la plataforma */
   protected canDeleteComment(c: ApiComment): boolean {
     const user = this.auth.currentUser();
     if (!user) return false;
 
     const isOwner = Number(c.userId) === Number(user.id);
-    const isActiveAdmin = this.role() === 'administrador';
+    const currentSlug = this.role();
+    const isAdmin = currentSlug === 'administrador' || user.roles?.includes('administrador');
 
-    return isOwner || isActiveAdmin;
+    return isOwner || isAdmin;
   }
 
   protected move(
@@ -1885,7 +1912,7 @@ export class ReportDetail implements OnInit, OnDestroy {
           .map(
             (item) =>
               typeof item?.msg ===
-                'string'
+              'string'
 
                 ? item.msg
 
