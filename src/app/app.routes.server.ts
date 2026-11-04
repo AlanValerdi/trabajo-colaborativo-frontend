@@ -1,6 +1,7 @@
 import { RenderMode, ServerRoute } from '@angular/ssr';
 
 export const serverRoutes: ServerRoute[] = [
+  { path: 'inicio/cargas', renderMode: RenderMode.Client },
   {
     path: 'inicio',
     renderMode: RenderMode.Client,

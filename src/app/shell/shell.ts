@@ -87,6 +87,9 @@ export class Shell {
   protected readonly roleMenuOpen = signal(false);
   protected readonly currentRole = this.roles.currentRole;
   protected readonly availableRoles = this.roles.availableRoles;
+  protected readonly canViewWorkload = computed(() =>
+    this.authService.currentUser()?.roles.some(role => ['coordinador', 'responsable_area'].includes(role)) ?? false,
+  );
   protected readonly currentUser = this.authService.currentUser;
   protected readonly searchQuery = this.homeSearch.query;
 
@@ -100,7 +103,7 @@ export class Shell {
     return ROLE_COLORS[slug] ?? '#3B82F6';
   }
 
-  private readonly currentUrl = toSignal(
+  protected readonly currentUrl = toSignal(
     this.router.events.pipe(
       filter((event) => event instanceof NavigationEnd),
       map(() => this.router.url),

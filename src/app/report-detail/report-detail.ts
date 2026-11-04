@@ -1,3 +1,4 @@
+import { Dialog } from '../ui/dialog/dialog';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
@@ -75,6 +76,7 @@ const REOPEN_FROM: ReportStatus[] = [
 
   imports: [
     RouterLink,
+    Dialog,
     ReportStatusTimeline,
     DatePipe,
     ReactiveFormsModule,
@@ -114,6 +116,35 @@ export class ReportDetail implements OnInit, OnDestroy {
   protected readonly notFound = signal(false);
 
   protected readonly busy = signal(false);
+  protected readonly closeDialogOpen = signal(false);
+  protected readonly closeDialogError = signal('');
+
+  protected requestClose(): void {
+    if (!this.canClose() || this.busy()) return;
+    if (this.role() !== 'reportante') { this.move('cerrada'); return; }
+    this.closeDialogError.set('');
+    this.closeDialogOpen.set(true);
+  }
+
+  protected cancelClose(): void {
+    if (!this.busy()) this.closeDialogOpen.set(false);
+  }
+
+  protected confirmClose(): void {
+    if (!this.closeDialogOpen() || !this.canClose() || this.busy()) return;
+    this.busy.set(true); this.closeDialogError.set('');
+    this.api.changeStatus(this.folio, { status: 'cerrada', comment: this.comment().trim() || null }).subscribe({
+      next: item => {
+        this.report.set(item); this.comment.set(''); this.busy.set(false);
+        this.closeDialogOpen.set(false); this.toast.show('Reporte cerrado');
+        this.loadHistory(); this.loadUnifiedHistory();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.busy.set(false); this.closeDialogError.set(this.errorMessage(err));
+      },
+    });
+  }
+
 
   protected readonly specialties = signal<ApiSpecialty[]>([]);
 
@@ -418,6 +449,7 @@ export class ReportDetail implements OnInit, OnDestroy {
     return (
       !!item &&
       REOPEN_FROM.includes(item.status) &&
+      (item.status !== 'cerrada' || this.role() === 'validador') &&
       (
         this.isAuthor() ||
         this.role() === 'validador'

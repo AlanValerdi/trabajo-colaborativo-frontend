@@ -1,3 +1,5 @@
+import { Workload } from './workload/workload';
+import { workloadGuard } from './auth/workload.guard';
 import { Routes } from '@angular/router';
 import { Login } from './login/login';
 import { Signup } from './signup/signup';
@@ -17,6 +19,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: '', component: Home },
+      { path: 'cargas', component: Workload, canActivate: [workloadGuard] },
       { path: 'comunidad', component: Community },
       { path: 'reportes/:id', component: ReportDetail },
     ],
