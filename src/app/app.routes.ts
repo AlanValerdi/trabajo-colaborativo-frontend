@@ -5,7 +5,9 @@ import { Shell } from './shell/shell';
 import { Home } from './home/home';
 import { ReportDetail } from './report-detail/report-detail';
 import { Community } from './community/community';
+import { LocationHistory } from './location-history/location-history';
 import { authGuard } from './auth/auth.guard';
+import { roleGuard } from './auth/role.guard';
 
 export const routes: Routes = [
   { path: '', component: Login },
@@ -19,6 +21,21 @@ export const routes: Routes = [
       { path: '', component: Home },
       { path: 'comunidad', component: Community },
       { path: 'reportes/:id', component: ReportDetail },
+      {
+        path: 'espacios/:locationId/historial',
+        component: LocationHistory,
+        canActivate: [roleGuard],
+        data: { roles: ['coordinador', 'responsable_area', 'administrador'] },
+      },
+      {
+        path: 'espacios',
+        component: Home,
+        canActivate: [roleGuard],
+        data: {
+          adminContext: 'espacios',
+          roles: ['coordinador', 'responsable_area', 'administrador'],
+        },
+      },
     ],
   },
 ];

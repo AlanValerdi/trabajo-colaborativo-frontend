@@ -111,6 +111,14 @@
           <span>Comunidad</span>
         }
       </a>
+      @if (hasSpacesAccess()) {
+        <a routerLink="/inicio/espacios" routerLinkActive="active" class="nav-item" title="Espacios">
+          <svg lucideMapPin aria-hidden="true"></svg>
+          @if (showSidebarLabels()) {
+            <span>Espacios</span>
+          }
+        </a>
+      }
     </nav>
 
     <div class="sidebar-footer">
