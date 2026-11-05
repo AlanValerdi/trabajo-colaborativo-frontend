@@ -119,6 +119,12 @@
           }
         </a>
       }
+      @if (canViewWorkload()) {
+        <a routerLink="/inicio/cargas" routerLinkActive="active" class="nav-item" title="Cargas de trabajo" aria-label="Cargas de trabajo">
+          <svg lucideClipboardCheck aria-hidden="true"></svg>
+          @if (showSidebarLabels()) { <span>Cargas de trabajo</span> }
+        </a>
+      }
     </nav>
 
     <div class="sidebar-footer">
@@ -171,6 +177,9 @@
       </button>
       <nav class="breadcrumb" aria-label="Migas de pan">
         <a routerLink="/inicio">Inicio</a>
+        @if (currentUrl().startsWith('/inicio/cargas')) {
+          <span class="sep">›</span><span>Cargas de trabajo</span>
+        }
         @if (crumbs.reportTitle(); as title) {
           <span class="sep">›</span>
           <span>Reporte {{ title }}</span>

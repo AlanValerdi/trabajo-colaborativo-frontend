@@ -1,0 +1,52 @@
+<header class="heading"><div><h1>Cargas de trabajo</h1><p>Distribución de incidencias por área y técnico.</p></div><button type="button" (click)="apply()" [disabled]="loading()">Actualizar</button></header>
+<div class="filters">
+  <label>Área<select name="area" [ngModel]="specialtyId" (ngModelChange)="specialtyId = $event; apply()"><option value="">Todas las áreas</option>@for (area of options()?.byArea ?? []; track area.specialtyId) { @if (area.specialtyId !== null) { <option [value]="area.specialtyId">{{ area.specialtyName }}</option> } }</select></label>
+  <label>Técnico<select name="technician" [ngModel]="assigneeId" (ngModelChange)="assigneeId = $event; apply()"><option value="">Todos los técnicos</option>@for (tech of options()?.byTechnician ?? []; track tech.assigneeId) { @if (tech.assigneeId !== null) { <option [value]="tech.assigneeId">{{ tech.assigneeName }}</option> } }</select></label>
+  <button type="button" (click)="reset()" [disabled]="loading()">Limpiar</button>
+</div>
+<div class="load-status" role="status" aria-live="polite">
+  @if (loading()) { <span>{{ summary() ? 'Actualizando resultados…' : 'Cargando cargas de trabajo…' }}</span> }
+</div>
+@if (error()) { <div role="alert" class="error">{{ error() }} <button type="button" (click)="apply()">Reintentar</button></div> }
+@if (summary(); as data) {
+  <section class="metrics" aria-label="Resumen de carga" [attr.aria-busy]="loading()">
+    <article><span>Total</span><strong>{{ data.summary.total }}</strong></article><article><span>Pendientes</span><strong>{{ data.summary.pending }}</strong></article><article><span>Resueltas</span><strong>{{ data.summary.resolved }}</strong></article><article><span>Cerradas</span><strong>{{ data.summary.closed }}</strong></article>
+  </section>
+  <p class="hint">Pendientes incluye todos los estados excepto resuelta y cerrada. El resumen usa los filtros de área y técnico.</p>
+  @for (section of [{ title: 'Carga por área', rows: data.byArea, area: true }, { title: 'Carga por técnico', rows: data.byTechnician, area: false }]; track section.title) {
+    <h2>{{ section.title }}</h2><div class="table-wrap"><table><thead><tr><th>{{ section.area ? 'Área' : 'Técnico' }}</th><th>Pendientes</th><th>Resueltas</th><th>Cerradas</th><th>Distribución por estado</th><th>Prioridades</th>@if (!section.area) { <th>Acciones</th> }</tr></thead><tbody>
+    @for (row of section.rows; track $index) { <tr><th scope="row">{{ section.area ? row.specialtyName : row.assigneeName }}</th><td>{{ row.pending }}</td><td>{{ row.resolved }}</td><td>{{ row.closed }}</td><td>{{ statusBreakdown(row.byStatus) }}</td><td>{{ priorityBreakdown(row.byPriority) }}</td>@if (!section.area) { <td>@if (row.assigneeId !== null) { <button type="button" (click)="openAssignment(row)" [disabled]="loading()" [attr.aria-label]="'Asignar incidencia a ' + row.assigneeName">Asignar incidencia</button> }</td> }</tr> }
+    @empty { <tr><td [attr.colspan]="section.area ? 6 : 7">No hay cargas para estos filtros.</td></tr> }
+    </tbody></table></div>
+  }
+  <h2>Detalle de incidencias</h2>
+  <div class="filters">
+    <label>Estado<select name="status" [ngModel]="status" (ngModelChange)="status = $event; apply()"><option value="">Todos los estados</option>@for (s of statuses; track s) { <option [value]="s">{{ statusLabel(s) }}</option> }</select></label>
+    <label>Prioridad<select name="priority" [ngModel]="priority" (ngModelChange)="priority = $event; apply()"><option value="">Todas las prioridades</option><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option></select></label>
+    <label class="check"><input type="checkbox" name="pending" [ngModel]="pendingOnly" (ngModelChange)="pendingOnly = $event; apply()">Solo pendientes</label>
+  </div>
+  @if (page(); as result) {
+    <div class="table-wrap"><table><thead><tr><th>Incidencia</th><th>Estado</th><th>Prioridad</th><th>Creación</th></tr></thead><tbody>
+    @for (report of result.items; track report.id) { <tr><td><a [routerLink]="['/inicio/reportes', report.folio]">{{ report.title }}</a><small>{{ report.folio }}</small></td><td>{{ statusLabel(report.status) }}</td><td>{{ priorityLabel(report.priority) }}</td><td>{{ report.createdAt | date:'dd/MM/yyyy' }}</td></tr> }
+    @empty { <tr><td colspan="4">No hay incidencias que coincidan con los filtros.</td></tr> }
+    </tbody></table></div>
+    <nav class="pagination" aria-label="Paginación de incidencias"><span>{{ result.total }} incidencias · Página {{ offset / limit + 1 }}</span><button type="button" (click)="paginate(-1)" [disabled]="loading() || offset === 0">Anterior</button><button type="button" (click)="paginate(1)" [disabled]="loading() || offset + limit >= result.total">Siguiente</button></nav>
+  }
+}
+
+<app-dialog [open]="assignmentTarget() !== null" [title]="'Asignar incidencia a ' + (assignmentTarget()?.assigneeName ?? '')" [showClose]="!assignmentBusy()" titleId="assignment-title" (closed)="closeAssignment()">
+  <div class="assignment-body" [attr.aria-busy]="assignmentLoading() || assignmentBusy()">
+    <p>Selecciona una incidencia categorizada y en estado validada, asignada, reabierta o bloqueada. @if (specialtyId) { Se muestran solo incidencias del área filtrada. }</p>
+    <label>Operación<select [ngModel]="assignmentMode()" (ngModelChange)="changeAssignmentMode($event)" [disabled]="assignmentBusy() || assignmentLoading()"><option value="assign">Asignar una incidencia sin técnico</option><option value="reassign">Reasignar una incidencia de otro técnico</option></select></label>
+    @if (assignmentLoading()) { <p role="status">Consultando incidencias…</p> }
+    @else {
+      <label>Incidencia<select [ngModel]="selectedFolio()" (ngModelChange)="selectedFolio.set($event)" [disabled]="assignmentBusy()"><option value="">Selecciona una incidencia</option>@for (report of eligibleReports(); track report.folio) { <option [value]="report.folio">{{ report.folio }} · {{ report.title }} · {{ statusLabel(report.status) }}</option> }</select></label>
+      @if (eligibleReports().length === 0 && !assignmentError()) { <p role="status">No hay incidencias elegibles para esta operación.</p> }
+      @if (selectedReport(); as report) {
+        <div class="assignment-review"><strong>{{ report.title }}</strong><p>Estado: {{ statusLabel(report.status) }} · Prioridad: {{ priorityLabel(report.priority) }}</p><p>Responsable actual: {{ assigneeName(report.assigneeId) }}</p><p>Nuevo responsable: <strong>{{ assignmentTarget()?.assigneeName }}</strong></p></div>
+      }
+    }
+    @if (assignmentError()) { <p role="alert" class="error">{{ assignmentError() }}</p><button type="button" (click)="selectedFolio.set(''); loadAssignment()" [disabled]="assignmentBusy() || assignmentLoading()">Recargar incidencias</button> }
+  </div>
+  <div dialog-actions class="assignment-actions"><button type="button" (click)="closeAssignment()" [disabled]="assignmentBusy()">Cancelar</button><button type="button" (click)="confirmAssignment()" [disabled]="!selectedFolio() || assignmentLoading() || assignmentBusy()">{{ assignmentBusy() ? 'Guardando…' : assignmentMode() === 'reassign' ? 'Confirmar reasignación' : 'Confirmar asignación' }}</button></div>
+</app-dialog>

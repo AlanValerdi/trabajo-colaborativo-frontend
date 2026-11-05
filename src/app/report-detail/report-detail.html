@@ -1072,7 +1072,7 @@
 
             <button
               type="button"
-              (click)="move('cerrada')"
+              (click)="requestClose()"
               [disabled]="busy()"
             >
               Cerrar
@@ -1340,3 +1340,12 @@
   </div>
 
 }
+
+<app-dialog [open]="closeDialogOpen()" title="¿Estás seguro de cerrar el reporte?" titleId="close-report-title" [showClose]="!busy()" (closed)="cancelClose()">
+  <p>Una vez ejecutada esta acción, ya no podrás reabrir el reporte.</p>
+  @if (closeDialogError()) { <p role="alert">{{ closeDialogError() }}</p> }
+  <div dialog-actions class="actions">
+    <button type="button" (click)="cancelClose()" [disabled]="busy()">Cancelar</button>
+    <button type="button" (click)="confirmClose()" [disabled]="busy()">{{ busy() ? 'Cerrando…' : 'Sí, cerrar reporte' }}</button>
+  </div>
+</app-dialog>
