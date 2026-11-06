@@ -105,6 +105,15 @@
           <span>Inicio</span>
         }
       </a>
+
+      <!-- Acceso al Dashboard Operativo -->
+      <a routerLink="/inicio/dashboard" routerLinkActive="active" class="nav-item" title="Dashboard Operativo">
+        <svg lucideClipboardList aria-hidden="true"></svg>
+        @if (showSidebarLabels()) {
+          <span>Dashboard</span>
+        }
+      </a>
+
       <a routerLink="/inicio/comunidad" routerLinkActive="active" class="nav-item">
         <svg lucideUsers aria-hidden="true"></svg>
         @if (showSidebarLabels()) {
@@ -177,6 +186,9 @@
       </button>
       <nav class="breadcrumb" aria-label="Migas de pan">
         <a routerLink="/inicio">Inicio</a>
+        @if (currentUrl().startsWith('/inicio/dashboard')) {
+          <span class="sep">›</span><span>Dashboard</span>
+        }
         @if (currentUrl().startsWith('/inicio/cargas')) {
           <span class="sep">›</span><span>Cargas de trabajo</span>
         }
