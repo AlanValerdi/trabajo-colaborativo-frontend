@@ -11,51 +11,18 @@ import { DashboardService } from '../services/dashboard.service';
   styleUrl: '../workload/workload.css'
 })
 export class DashboardComponent implements OnInit {
+  // Inicializado en ceros reales
   kpis: any = {
-    total_activas: 18,
-    en_progreso: 7,
-    bloqueadas: 2,
-    vencidas: 3,
-    resueltas: 24
+    total_activas: 0,
+    en_progreso: 0,
+    bloqueadas: 0,
+    vencidas: 0,
+    resueltas: 0
   };
-  areas: any[] = [
-    { area_id: 1, area_nombre: 'Mantenimiento TI', total_incidencias: 8, bloqueadas: 2, vencidas: 1 },
-    { area_id: 2, area_nombre: 'Infraestructura y Obras', total_incidencias: 6, bloqueadas: 0, vencidas: 2 },
-    { area_id: 3, area_nombre: 'Adquisiciones y Almacén', total_incidencias: 4, bloqueadas: 0, vencidas: 0 }
-  ];
-  alertasVencidas: any[] = [
-    {
-      id: 42,
-      folio: 'INC-2026-0042',
-      titulo: 'Proyector sin imagen en aula 204',
-      estado: 'bloqueada',
-      prioridad: 'alta',
-      area_nombre: 'Mantenimiento TI',
-      tecnico_nombre: 'Carlos Núñez',
-      horas_vencida: 31
-    },
-    {
-      id: 35,
-      folio: 'INC-2026-0035',
-      titulo: 'Fuga de agua en sanitarios edificio FCC-2',
-      estado: 'en_progreso',
-      prioridad: 'alta',
-      area_nombre: 'Infraestructura y Obras',
-      tecnico_nombre: 'Ana Torres',
-      horas_vencida: 18
-    },
-    {
-      id: 48,
-      folio: 'INC-2026-0048',
-      titulo: 'Falla en centro de carga laboratorio 3',
-      estado: 'en_progreso',
-      prioridad: 'alta',
-      area_nombre: 'Infraestructura y Obras',
-      tecnico_nombre: 'Sin asignar',
-      horas_vencida: 8
-    }
-  ];
+  areas: any[] = [];
+  alertasVencidas: any[] = [];
   cargando: boolean = false;
+  errorCarga: string | null = null;
 
   constructor(
     private dashboardService: DashboardService,
@@ -68,19 +35,30 @@ export class DashboardComponent implements OnInit {
 
   cargarDatos(): void {
     this.cargando = true;
+    this.errorCarga = null;
     this.cdr.markForCheck();
 
     this.dashboardService.obtenerDatos().subscribe({
       next: (data) => {
+        console.log('Datos reales recibidos del backend:', data);
         if (data) {
-          this.kpis = data.kpis || this.kpis;
-          this.areas = data.areas || this.areas;
-          this.alertasVencidas = data.alertas_vencidas || this.alertasVencidas;
+          // Asignar los datos directos del backend
+          this.kpis = data.kpis || {
+            total_activas: data.total_activas ?? 0,
+            en_progreso: data.en_progreso ?? 0,
+            bloqueadas: data.bloqueadas ?? 0,
+            vencidas: data.vencidas ?? 0,
+            resueltas: data.resueltas ?? 0
+          };
+          this.areas = data.areas || data.resumen_areas || [];
+          this.alertasVencidas = data.alertas_vencidas || data.alertas || [];
         }
         this.cargando = false;
         this.cdr.markForCheck();
       },
-      error: () => {
+      error: (err) => {
+        console.error('Error al consultar endpoint /api/dashboard/operativo:', err);
+        this.errorCarga = 'No se pudieron sincronizar las métricas reales con el servidor.';
         this.cargando = false;
         this.cdr.markForCheck();
       }
