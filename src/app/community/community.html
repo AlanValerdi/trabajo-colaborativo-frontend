@@ -65,16 +65,22 @@
       </div>
 
       <!-- Filtro de Estado -->
+      
       <div class="filter-group">
         <label for="status-select">Estado</label>
         <select 
           id="status-select" 
           (change)="onStatusChange($any($event.target).value)">
           <option value="" [selected]="!selectedStatus()">Todos los estados</option>
-          <option value="PENDING" [selected]="selectedStatus() === 'PENDING'">Pendiente</option>
-          <option value="IN_PROGRESS" [selected]="selectedStatus() === 'IN_PROGRESS'">En Proceso</option>
-          <option value="RESOLVED" [selected]="selectedStatus() === 'RESOLVED'">Resuelto</option>
-          <option value="REJECTED" [selected]="selectedStatus() === 'REJECTED'">Rechazado</option>
+          <option value="Reportada" [selected]="selectedStatus() === 'Reportada'">Reportada</option>
+          <option value="Validada" [selected]="selectedStatus() === 'Validada'">Validada</option>
+          <option value="Asignada" [selected]="selectedStatus() === 'Asignada'">Asignada</option>
+          <option value="En_progreso" [selected]="selectedStatus() === 'En_progreso'">En progreso</option>
+          <option value="En_validación" [selected]="selectedStatus() === 'En_validación'">En validación</option>
+          <option value="Resuelta" [selected]="selectedStatus() === 'Resuelta'">Resuelta</option>
+          <option value="Cerrada" [selected]="selectedStatus() === 'Cerrada'">Cerrada</option>
+          <option value="bloqueada" [selected]="selectedStatus() === 'bloqueada'">Bloqueada</option>
+          <option value="reabierta" [selected]="selectedStatus() === 'reabierta'">Reabierta</option>
         </select>
       </div>
     </div>
