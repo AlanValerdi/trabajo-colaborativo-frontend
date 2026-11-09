@@ -1781,23 +1781,23 @@ export class ReportDetail implements OnInit, OnDestroy {
   protected historyTypeLabel(type: string): string {
     switch (type) {
       case 'creacion':
-        return 'Creación';
+        return 'Creado';
       case 'estado':
-        return 'Estado';
+        return 'Estado cambiado';
       case 'asignacion':
-        return 'Asignación';
+        return 'Asignado';
       case 'comentario':
-        return 'Comentario';
+        return 'Comentado';
       case 'diagnostico':
-        return 'Diagnóstico';
+        return 'Diagnosticado';
       case 'actividad':
-        return 'Bitácora';
+        return 'Actividad registrada';
       case 'evidencia':
-        return 'Evidencia';
+        return 'Evidencia agregada';
       case 'colaboracion':
-        return 'Colaboración';
+        return 'Colaboración agregada';
       default:
-        return 'Evento';
+        return 'Evento registrado';
     }
   }
 
