@@ -1783,7 +1783,7 @@ export class ReportDetail implements OnInit, OnDestroy {
       case 'creacion':
         return 'Creado';
       case 'estado':
-        return 'Estado cambiado';
+        return 'Cambiado';
       case 'asignacion':
         return 'Asignado';
       case 'comentario':
