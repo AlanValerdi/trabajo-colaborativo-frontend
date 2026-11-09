@@ -91,7 +91,7 @@ export class Shell {
   protected readonly availableRoles = this.roles.availableRoles;
   protected readonly hasSpacesAccess = this.roles.hasSpacesAccess;
   protected readonly canViewWorkload = computed(() =>
-    this.authService.currentUser()?.roles.some(role => ['coordinador', 'responsable_area'].includes(role)) ?? false,
+    ['coordinador', 'responsable'].includes(this.currentRole().slug),
   );
   protected readonly currentUser = this.authService.currentUser;
   protected readonly searchQuery = this.homeSearch.query;
