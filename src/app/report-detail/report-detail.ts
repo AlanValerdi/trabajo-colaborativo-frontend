@@ -1,4 +1,5 @@
 import { Dialog } from '../ui/dialog/dialog';
+import { Attention } from '../attention/attention';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
@@ -76,6 +77,7 @@ const REOPEN_FROM: ReportStatus[] = [
 
   imports: [
     RouterLink,
+    Attention,
     Dialog,
     ReportStatusTimeline,
     DatePipe,
