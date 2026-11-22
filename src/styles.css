@@ -97,3 +97,31 @@ body {
   background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
+
+@media print {
+  body.printing-report,
+  body.printing-report app-root,
+  body.printing-report app-shell,
+  body.printing-report app-shell .shell,
+  body.printing-report app-shell .main,
+  body.printing-report app-shell .content {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body.printing-report app-shell .sidebar,
+  body.printing-report app-shell .topbar,
+  body.printing-report app-toast,
+  body.printing-report app-confirm {
+    display: none !important;
+  }
+
+  body.printing-report app-shell .content {
+    padding: 0 !important;
+    color: #000 !important;
+  }
+}
