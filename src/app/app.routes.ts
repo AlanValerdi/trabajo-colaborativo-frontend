@@ -34,6 +34,12 @@ export const routes: Routes = [
       { path: '', component: Home },
       { path: 'dashboard', component: DashboardComponent },
       { path: 'cargas', component: Workload, canActivate: [workloadGuard] },
+      {
+        path: 'reportes-atencion',
+        loadComponent: () => import('./analytics/analytics').then(m => m.Analytics),
+        canActivate: [roleGuard],
+        data: { roles: ['administrador', 'coordinador', 'responsable_area'] },
+      },
       { path: 'comunidad', component: Community },
       { path: 'reportes/:id', component: ReportDetail },
       {
