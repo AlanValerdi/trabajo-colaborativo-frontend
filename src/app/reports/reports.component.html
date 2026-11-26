@@ -1,0 +1,211 @@
+<main class="reports-page">
+  <header class="page-heading">
+    <div>
+      <span class="eyebrow">HU-27 · Análisis de incidencias</span>
+      <h1>Generar reportes</h1>
+      <p>Consulta, filtra y exporta el resumen de incidencias registradas.</p>
+    </div>
+    <div class="heading-actions no-print">
+      <button class="button secondary" type="button" (click)="printReport()" [disabled]="!result()">
+        Imprimir / Guardar PDF
+      </button>
+    </div>
+  </header>
+
+  <section class="filter-panel no-print" aria-label="Filtros del reporte">
+    <label>
+      Fecha de inicio
+      <input type="date" name="startDate" [(ngModel)]="startDate" />
+    </label>
+    <label>
+      Fecha de fin
+      <input type="date" name="endDate" [(ngModel)]="endDate" />
+    </label>
+    <label>
+      Categoría
+      <select name="categoryId" [(ngModel)]="categoryId">
+        <option value="">Todas las categorías</option>
+        @for (category of categories(); track category.value) {
+          <option [value]="category.value">{{ category.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Área / Especialidad
+      <select name="specialtyId" [(ngModel)]="specialtyId" [disabled]="catalogsLoading()">
+        <option value="">Todas las áreas</option>
+        @for (specialty of specialties(); track specialty.id) {
+          <option [value]="specialty.id">{{ specialty.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Edificio / Ubicación
+      <select name="locationId" [(ngModel)]="locationId" [disabled]="catalogsLoading()">
+        <option value="">Todas las ubicaciones</option>
+        @for (location of locations(); track location.id) {
+          <option [value]="location.id">{{ location.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Estado
+      <select name="status" [(ngModel)]="status">
+        <option value="">Todos los estados</option>
+        @for (itemStatus of statuses; track itemStatus) {
+          <option [value]="itemStatus">{{ statusLabel(itemStatus) }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Prioridad
+      <select name="priority" [(ngModel)]="priority">
+        <option value="">Todas las prioridades</option>
+        @for (itemPriority of priorities; track itemPriority.value) {
+          <option [value]="itemPriority.value">{{ itemPriority.label }}</option>
+        }
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button class="button primary" type="button" (click)="generateReport()" [disabled]="loading()">
+        {{ loading() ? 'Generando…' : 'Generar reporte' }}
+      </button>
+      <button class="button secondary" type="button" (click)="clearFilters()" [disabled]="loading()">
+        Limpiar filtros
+      </button>
+    </div>
+  </section>
+
+  @if (catalogsError()) {
+    <p class="notice warning" role="alert">{{ catalogsError() }}</p>
+  }
+  @if (loading()) {
+    <p class="load-message" role="status" aria-live="polite">Cargando datos del reporte…</p>
+  }
+  @if (error()) {
+    <div class="notice error" role="alert">
+      <span>{{ error() }}</span>
+      <button class="button secondary no-print" type="button" (click)="generateReport()">Reintentar</button>
+    </div>
+  }
+
+  @if (result(); as data) {
+    <section class="kpi-grid" aria-label="Indicadores del reporte" [attr.aria-busy]="loading()">
+      <article class="kpi-card accent-blue">
+        <span>Total de incidencias</span>
+        <strong>{{ data?.kpis?.total ?? 0 }}</strong>
+      </article>
+      <article class="kpi-card accent-amber">
+        <span>Abiertas</span>
+        <strong>{{ data?.kpis?.open ?? 0 }}</strong>
+      </article>
+      <article class="kpi-card accent-violet">
+        <span>En progreso</span>
+        <strong>{{ data?.kpis?.in_progress ?? 0 }}</strong>
+      </article>
+      <article class="kpi-card accent-red">
+        <span>Bloqueadas</span>
+        <strong>{{ data?.kpis?.blocked ?? 0 }}</strong>
+      </article>
+      <article class="kpi-card accent-green">
+        <span>Resueltas / Cerradas</span>
+        <strong>{{ data?.kpis?.resolved_closed ?? 0 }}</strong>
+      </article>
+      <article class="kpi-card accent-teal">
+        <span>Tiempo promedio de resolución</span>
+        <strong>
+          {{ data?.kpis?.average_resolution_hours ?? '—' }}
+          <small>horas</small>
+        </strong>
+      </article>
+    </section>
+
+    @if ((data?.items?.length ?? 0) === 0) {
+      <div class="empty-state" role="status">
+        <h2>No hay resultados para estos filtros</h2>
+        <p>Prueba con otro periodo o limpia los filtros para consultar todas las incidencias.</p>
+      </div>
+    } @else {
+      <section class="breakdown-grid" aria-label="Desglose de incidencias">
+        @for (section of breakdowns(); track section.title) {
+          <article class="breakdown-card">
+            <header>
+              <h2>{{ section.title }}</h2>
+              <span>{{ section.rows.length }}</span>
+            </header>
+            @if (section.rows.length === 0) {
+              <p class="empty-inline">Sin información disponible.</p>
+            } @else {
+              <ul>
+                @for (row of section.rows; track $index) {
+                  <li>
+                    <div class="breakdown-line">
+                      <span>{{ breakdownLabel(row, section.kind) }}</span>
+                      <strong>{{ row?.count ?? 0 }}</strong>
+                    </div>
+                    <div class="progress-track" role="img"
+                      [attr.aria-label]="breakdownLabel(row, section.kind) + ': ' + share(row?.count, section.rows) + '%'">
+                      <span [style.width.%]="share(row?.count, section.rows)"></span>
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+          </article>
+        }
+      </section>
+
+      <section class="detail-section" aria-labelledby="detail-title">
+        <header class="section-heading">
+          <div>
+            <h2 id="detail-title">Detalle de incidencias</h2>
+            <p>{{ totalItems() }} resultados · Página {{ currentPage() }} de {{ totalPages() }}</p>
+          </div>
+        </header>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">ID</th>
+                <th scope="col">Título</th>
+                <th scope="col">Categoría</th>
+                <th scope="col">Prioridad</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Ubicación</th>
+                <th scope="col">Responsable asignado</th>
+                <th scope="col">Fecha de creación</th>
+                <th scope="col">Fecha de cierre</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of data?.items ?? []; track item?.id) {
+                <tr>
+                  <td><code>{{ item?.id ?? '—' }}</code></td>
+                  <td>{{ item?.title ?? '—' }}</td>
+                  <td>{{ itemCategory(item) }}</td>
+                  <td>
+                    <span class="badge priority-badge" [attr.data-priority]="priorityKey(item?.priority)">
+                      {{ priorityLabel(item?.priority) }}
+                    </span>
+                  </td>
+                  <td><span class="badge status-badge" [attr.data-status]="item?.status">{{ item?.status ? statusLabel(item.status) : 'Sin estado' }}</span></td>
+                  <td>{{ itemLocation(item) }}</td>
+                  <td>{{ itemAssignee(item) }}</td>
+                  <td>{{ item?.created_at ? (item.created_at | date: 'dd/MM/yyyy HH:mm') : '—' }}</td>
+                  <td>{{ item?.closed_at ? (item.closed_at | date: 'dd/MM/yyyy HH:mm') : '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <nav class="pagination no-print" aria-label="Paginación del reporte">
+          <span>{{ totalItems() }} incidencias</span>
+          <button class="button secondary" type="button" (click)="changePage(-1)"
+            [disabled]="loading() || currentPage() <= 1">Anterior</button>
+          <button class="button secondary" type="button" (click)="changePage(1)"
+            [disabled]="loading() || currentPage() >= totalPages()">Siguiente</button>
+        </nav>
+      </section>
+    }
+  }
+</main>

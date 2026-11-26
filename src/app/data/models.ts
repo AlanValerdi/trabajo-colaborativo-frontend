@@ -28,7 +28,7 @@ export type IncidentCategory =
   | 'climatizacion'
   | 'otro';
 
-export type Priority = 'baja' | 'media' | 'alta';
+export type Priority = 'baja' | 'media' | 'alta' | 'critica';
 
 export interface Role {
   id: string;

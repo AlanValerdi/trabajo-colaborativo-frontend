@@ -93,6 +93,9 @@ export class Shell {
   protected readonly canViewWorkload = computed(() =>
     ['coordinador', 'responsable'].includes(this.currentRole().slug),
   );
+  protected readonly canViewReports = computed(() =>
+    ['coordinador', 'responsable', 'administrador'].includes(this.currentRole().slug),
+  );
   protected readonly currentUser = this.authService.currentUser;
   protected readonly canViewAnalytics = computed(() =>
     ['administrador', 'coordinador', 'responsable'].includes(this.currentRole().slug),

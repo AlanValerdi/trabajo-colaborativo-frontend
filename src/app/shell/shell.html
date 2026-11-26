@@ -140,6 +140,12 @@
           @if (showSidebarLabels()) { <span>Cargas de trabajo</span> }
         </a>
       }
+      @if (canViewReports()) {
+        <a routerLink="/reportes" routerLinkActive="active" class="nav-item" title="Reportes" aria-label="Reportes">
+          <svg lucideFileText aria-hidden="true"></svg>
+          @if (showSidebarLabels()) { <span>Reportes</span> }
+        </a>
+      }
     </nav>
 
     <div class="sidebar-footer">
@@ -198,6 +204,8 @@
         @if (currentUrl().startsWith('/inicio/cargas')) {
           <span class="sep">›</span><span>Cargas de trabajo</span>
         }
+        @if (currentUrl().startsWith('/reportes')) {
+          <span class="sep">›</span><span>Reportes</span>
         @if (currentUrl().startsWith('/inicio/reportes-atencion')) {
           <span class="sep">›</span><span>Reportes de atención</span>
         }
